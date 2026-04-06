@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import Icon from "@/components/ui/icon";
+import Dashboard, { UserProfile } from "./Dashboard";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type CalcInput = {
@@ -123,11 +124,13 @@ function MacroBar({ label, value, kcal, color, pct }: {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 const Index = () => {
+  const [page, setPage] = useState<"calc" | "dashboard">("calc");
   const [inp, setInp] = useState<CalcInput>({
     age: "", weight: "", height: "", gender: "female", activity: "moderate", goal: "maintain",
   });
   const [result, setResult] = useState<CalcResult | null>(null);
   const [calcError, setCalcError] = useState("");
+  const [dashboardProfile, setDashboardProfile] = useState<Partial<UserProfile> | undefined>(undefined);
 
   const [chatOpen, setChatOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -151,6 +154,12 @@ const Index = () => {
     if (!r) { setCalcError("Заполни возраст, вес и рост"); return; }
     setCalcError("");
     setResult(r);
+    setDashboardProfile({
+      dailyCalories: r.target,
+      proteinTarget: r.protein,
+      fatTarget: r.fat,
+      carbsTarget: r.carbs,
+    });
   }
 
   async function sendMsg(overrideText?: string) {
@@ -194,19 +203,39 @@ const Index = () => {
 
       {/* ── HEADER ── */}
       <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <div className="w-7 h-7 rounded-lg bg-emerald-500 flex items-center justify-center">
               <Icon name="Flame" size={15} className="text-white" />
             </div>
             <span className="font-bold text-gray-800 text-sm tracking-tight">AI Calorie Assistant</span>
           </div>
-          <span className="text-xs text-gray-400 hidden sm:block">Бесплатный калькулятор калорий с AI</span>
+          {/* Nav tabs */}
+          <nav className="flex items-center gap-1">
+            <button
+              onClick={() => setPage("calc")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${page === "calc" ? "bg-emerald-50 text-emerald-600" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"}`}>
+              <Icon name="Calculator" size={14} />
+              <span className="hidden sm:inline">Калькулятор</span>
+            </button>
+            <button
+              onClick={() => setPage("dashboard")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${page === "dashboard" ? "bg-emerald-50 text-emerald-600" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"}`}>
+              <Icon name="BookOpen" size={14} />
+              <span className="hidden sm:inline">Дневник</span>
+            </button>
+          </nav>
         </div>
       </header>
 
       {/* ── MAIN ── */}
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+      <main>
+
+        {/* Dashboard page */}
+        {page === "dashboard" && <Dashboard externalProfile={dashboardProfile} />}
+
+        {/* Calculator page */}
+        {page === "calc" && <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
 
         {/* Title */}
         <div className="mb-8 text-center">
@@ -344,14 +373,23 @@ const Index = () => {
                   </div>
                 </div>
 
-                {/* Ask AI button */}
-                <button
-                  onClick={() => setChatOpen(true)}
-                  className="w-full py-3 rounded-xl border-2 border-emerald-500 text-emerald-600 font-bold text-sm hover:bg-emerald-50 transition-all duration-150 flex items-center justify-center gap-2"
-                >
-                  <Icon name="Bot" size={16} />
-                  Спросить AI-диетолога
-                </button>
+                {/* Action buttons */}
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => setPage("dashboard")}
+                    className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm transition-all duration-150 flex items-center justify-center gap-2"
+                  >
+                    <Icon name="BookOpen" size={16} className="text-white" />
+                    Перейти в дневник питания
+                  </button>
+                  <button
+                    onClick={() => setChatOpen(true)}
+                    className="w-full py-3 rounded-xl border-2 border-emerald-500 text-emerald-600 font-bold text-sm hover:bg-emerald-50 transition-all duration-150 flex items-center justify-center gap-2"
+                  >
+                    <Icon name="Bot" size={16} />
+                    Спросить AI-диетолога
+                  </button>
+                </div>
               </>
             )}
           </div>
@@ -378,6 +416,7 @@ const Index = () => {
             </div>
           </div>
         </div>
+        </div>}
       </main>
 
       {/* ── FOOTER ── */}
