@@ -1,0 +1,22 @@
+{
+  "tests": [
+    {
+      "name": "OPTIONS preflight",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
+    },
+    {
+      "name": "POST chat message",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "messages": [{ "role": "user", "text": "Сколько калорий в яблоке?" }],
+        "userContext": {}
+      },
+      "expectedStatus": 200,
+      "expectedBody": { "reply": "string" },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
