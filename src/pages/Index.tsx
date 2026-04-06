@@ -1,7 +1,27 @@
 import { useState, useRef, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 
-type CalcValues = { scope: string; timeline: string; support: boolean; design: boolean };
+type CalcInput = { age: string; weight: string; height: string; gender: string; activity: string; goal: string; };
+type CalcResult = { bmr: number; tdee: number; target: number; protein: number; fat: number; carbs: number; bmi: number; idealWeight: number; water: number; };
+
+function calcCalories(inp: CalcInput): CalcResult | null {
+  const age = parseFloat(inp.age), w = parseFloat(inp.weight), h = parseFloat(inp.height);
+  if (!age || !w || !h) return null;
+  const bmr = inp.gender === "male"
+    ? 10 * w + 6.25 * h - 5 * age + 5
+    : 10 * w + 6.25 * h - 5 * age - 161;
+  const actMap: Record<string, number> = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725, veryactive: 1.9 };
+  const tdee = Math.round(bmr * (actMap[inp.activity] ?? 1.375));
+  const goalMap: Record<string, number> = { loss: -500, softloss: -250, maintain: 0, gain: 250, fastgain: 500 };
+  const target = tdee + (goalMap[inp.goal] ?? 0);
+  const protein = Math.round(w * 2.0);
+  const fat = Math.round((target * 0.25) / 9);
+  const carbs = Math.round((target - protein * 4 - fat * 9) / 4);
+  const bmi = Math.round((w / ((h / 100) ** 2)) * 10) / 10;
+  const idealWeight = inp.gender === "male" ? Math.round(50 + 0.91 * (h - 152.4)) : Math.round(45.5 + 0.91 * (h - 152.4));
+  const water = Math.round(w * 35);
+  return { bmr: Math.round(bmr), tdee, target, protein, fat, carbs, bmi, idealWeight, water };
+}
 
 const HERO_IMAGE = "https://cdn.poehali.dev/projects/9d3d81c9-90d3-41a8-8ade-c77a796fe46d/files/950827a8-2658-41cc-8978-1de8fa431049.jpg";
 
@@ -57,8 +77,8 @@ function getTime() {
 }
 
 const Index = () => {
-  const [calcValues, setCalcValues] = useState({ scope: "medium", timeline: "standard", support: false, design: false });
-  const [calcResult, setCalcResult] = useState<number | null>(null);
+  const [calcInput, setCalcInput] = useState<CalcInput>({ age: "", weight: "", height: "", gender: "female", activity: "moderate", goal: "maintain" });
+  const [calcResult, setCalcResult] = useState<CalcResult | null>(null);
 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     { role: "ai", text: AI_RESPONSES.default, time: getTime() },
@@ -75,12 +95,8 @@ const Index = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages, isTyping]);
 
-  function calculatePrice() {
-    let base = calcValues.scope === "small" ? 15000 : calcValues.scope === "medium" ? 45000 : 95000;
-    if (calcValues.timeline === "urgent") base = Math.round(base * 1.5);
-    if (calcValues.support) base += 8000;
-    if (calcValues.design) base += 12000;
-    setCalcResult(base);
+  function handleCalc() {
+    setCalcResult(calcCalories(calcInput));
   }
 
   function sendMessage() {
@@ -213,98 +229,157 @@ const Index = () => {
         <div className="orb" style={{ width: 400, height: 400, background: "rgba(168,85,247,0.08)", top: "20%", right: "0" }} />
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <div className="text-center mb-12">
-            <p className="text-sm font-medium mb-3 uppercase tracking-widest" style={{ color: "var(--neon-violet)" }}>Стоимость</p>
+            <p className="text-sm font-medium mb-3 uppercase tracking-widest" style={{ color: "var(--neon-violet)" }}>Персональный расчёт</p>
             <h2 className="font-display text-4xl sm:text-5xl font-bold text-white mb-4">
-              <span className="neon-violet-text">Калькулятор</span> цены
+              <span className="neon-violet-text">Калькулятор</span> калорий
             </h2>
-            <p className="text-white/50 text-lg max-w-xl mx-auto">Рассчитайте примерную стоимость вашего проекта за 30 секунд</p>
+            <p className="text-white/50 text-lg max-w-xl mx-auto">BMR → TDEE → цель → БЖУ → ИМТ и норма воды</p>
           </div>
 
           <div className="max-w-3xl mx-auto glass rounded-3xl p-8 sm:p-10">
-            <div className="space-y-8">
-              <div>
-                <p className="text-white/70 text-sm font-medium mb-4 uppercase tracking-wide">Объём работ</p>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { value: "small", label: "Базовый", price: "от 15 000 ₽" },
-                    { value: "medium", label: "Стандарт", price: "от 45 000 ₽" },
-                    { value: "large", label: "Премиум", price: "от 95 000 ₽" },
-                  ].map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => setCalcValues((v) => ({ ...v, scope: opt.value }))}
-                      className={`rounded-xl p-4 text-center transition-all duration-200 border ${calcValues.scope === opt.value
-                        ? "border-cyan-400 bg-cyan-400/10 text-white"
-                        : "border-white/10 text-white/50 hover:border-white/25"}`}
-                    >
-                      <div className="font-semibold text-sm mb-1">{opt.label}</div>
-                      <div className="text-xs opacity-70">{opt.price}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
+            <div className="space-y-6">
 
+              {/* Пол */}
               <div>
-                <p className="text-white/70 text-sm font-medium mb-4 uppercase tracking-wide">Срочность</p>
+                <p className="text-white/60 text-xs font-medium mb-3 uppercase tracking-wide">Пол</p>
                 <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { value: "standard", label: "Стандартная", sub: "1-2 недели" },
-                    { value: "urgent", label: "Срочная +50%", sub: "3-5 дней" },
-                  ].map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => setCalcValues((v) => ({ ...v, timeline: opt.value }))}
-                      className={`rounded-xl p-4 text-center transition-all duration-200 border ${calcValues.timeline === opt.value
-                        ? "border-purple-400 bg-purple-400/10 text-white"
-                        : "border-white/10 text-white/50 hover:border-white/25"}`}
-                    >
-                      <div className="font-semibold text-sm mb-1">{opt.label}</div>
-                      <div className="text-xs opacity-70">{opt.sub}</div>
+                  {[{ v: "female", label: "Женщина", icon: "♀" }, { v: "male", label: "Мужчина", icon: "♂" }].map((o) => (
+                    <button key={o.v} onClick={() => setCalcInput((p) => ({ ...p, gender: o.v }))}
+                      className={`rounded-xl py-3 text-sm font-semibold border transition-all duration-200 ${calcInput.gender === o.v ? "border-purple-400 bg-purple-400/10 text-white" : "border-white/10 text-white/50 hover:border-white/25"}`}>
+                      {o.icon} {o.label}
                     </button>
                   ))}
                 </div>
               </div>
 
+              {/* Возраст / Вес / Рост */}
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { key: "age", label: "Возраст", placeholder: "лет", unit: "лет" },
+                  { key: "weight", label: "Вес", placeholder: "кг", unit: "кг" },
+                  { key: "height", label: "Рост", placeholder: "см", unit: "см" },
+                ].map((f) => (
+                  <div key={f.key}>
+                    <p className="text-white/60 text-xs font-medium mb-2 uppercase tracking-wide">{f.label}</p>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={calcInput[f.key as keyof CalcInput]}
+                        onChange={(e) => setCalcInput((p) => ({ ...p, [f.key]: e.target.value }))}
+                        placeholder={f.placeholder}
+                        className="w-full rounded-xl px-3 py-3 pr-9 text-sm text-white placeholder-white/25 outline-none transition-all text-center"
+                        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
+                        onFocus={(e) => (e.target.style.borderColor = "rgba(168,85,247,0.5)")}
+                        onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
+                      />
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/25 text-xs">{f.unit}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Активность */}
               <div>
-                <p className="text-white/70 text-sm font-medium mb-4 uppercase tracking-wide">Дополнительно</p>
-                <div className="grid grid-cols-2 gap-3">
+                <p className="text-white/60 text-xs font-medium mb-3 uppercase tracking-wide">Уровень активности</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {[
-                    { key: "support", label: "Поддержка 6 мес", price: "+8 000 ₽" },
-                    { key: "design", label: "Премиум дизайн", price: "+12 000 ₽" },
-                  ].map((opt) => (
-                    <button
-                      key={opt.key}
-                      onClick={() => setCalcValues((v: CalcValues) => ({ ...v, [opt.key]: !v[opt.key as keyof CalcValues] }))}
-                      className={`rounded-xl p-4 transition-all duration-200 border flex items-center justify-between ${calcValues[opt.key as keyof CalcValues]
-                        ? "border-cyan-400 bg-cyan-400/10 text-white"
-                        : "border-white/10 text-white/50 hover:border-white/25"}`}
-                    >
-                      <div>
-                        <div className="font-semibold text-sm text-left">{opt.label}</div>
-                        <div className="text-xs opacity-70 text-left">{opt.price}</div>
-                      </div>
-                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${calcValues[opt.key as keyof CalcValues] ? "border-cyan-400 bg-cyan-400/20" : "border-white/20"}`}>
-                        {calcValues[opt.key as keyof CalcValues] && <Icon name="Check" size={12} style={{ color: "var(--neon-cyan)" }} />}
-                      </div>
+                    { v: "sedentary", label: "Сидячий образ жизни", sub: "×1.2" },
+                    { v: "light", label: "Лёгкая активность", sub: "×1.375" },
+                    { v: "moderate", label: "Умеренная активность", sub: "×1.55" },
+                    { v: "active", label: "Высокая активность", sub: "×1.725" },
+                    { v: "veryactive", label: "Очень высокая", sub: "×1.9" },
+                  ].map((o) => (
+                    <button key={o.v} onClick={() => setCalcInput((p) => ({ ...p, activity: o.v }))}
+                      className={`rounded-xl px-4 py-2.5 text-left text-sm border transition-all duration-200 flex justify-between items-center ${calcInput.activity === o.v ? "border-cyan-400 bg-cyan-400/10 text-white" : "border-white/10 text-white/50 hover:border-white/25"}`}>
+                      <span>{o.label}</span>
+                      <span className="text-xs opacity-60 ml-2">{o.sub}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
-              <button onClick={calculatePrice} className="btn-neon w-full py-4 rounded-2xl text-base font-bold flex items-center justify-center gap-2">
+              {/* Цель */}
+              <div>
+                <p className="text-white/60 text-xs font-medium mb-3 uppercase tracking-wide">Цель</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {[
+                    { v: "loss", label: "Похудение", sub: "−500 ккал" },
+                    { v: "softloss", label: "Мягкое похудение", sub: "−250 ккал" },
+                    { v: "maintain", label: "Поддержание", sub: "±0 ккал" },
+                    { v: "gain", label: "Набор массы", sub: "+250 ккал" },
+                    { v: "fastgain", label: "Быстрый набор", sub: "+500 ккал" },
+                  ].map((o) => (
+                    <button key={o.v} onClick={() => setCalcInput((p) => ({ ...p, goal: o.v }))}
+                      className={`rounded-xl px-3 py-2.5 text-center text-sm border transition-all duration-200 ${calcInput.goal === o.v ? "border-cyan-400 bg-cyan-400/10 text-white" : "border-white/10 text-white/50 hover:border-white/25"}`}>
+                      <div className="font-semibold">{o.label}</div>
+                      <div className="text-xs opacity-60">{o.sub}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button onClick={handleCalc} className="btn-neon w-full py-4 rounded-2xl text-base font-bold flex items-center justify-center gap-2">
                 <Icon name="Calculator" size={20} />
-                Рассчитать стоимость
+                Рассчитать
               </button>
 
-              {calcResult !== null && (
-                <div className="animate-fade-up rounded-2xl p-6 text-center" style={{ background: "linear-gradient(135deg, rgba(0,229,255,0.1), rgba(168,85,247,0.1))", border: "1px solid rgba(0,229,255,0.25)" }}>
-                  <p className="text-white/60 text-sm mb-2">Примерная стоимость</p>
-                  <p className="font-display text-4xl font-bold gradient-text">
-                    {calcResult.toLocaleString("ru")} ₽
-                  </p>
-                  <p className="text-white/40 text-xs mt-2">Точная цена после консультации</p>
-                  <a href="#contacts" className="inline-block mt-4 btn-neon px-8 py-3 rounded-xl text-sm font-bold">
-                    Оставить заявку
+              {calcResult && (
+                <div className="animate-fade-up space-y-4">
+                  {/* Главные метрики */}
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { label: "Базовый обмен (BMR)", value: calcResult.bmr, unit: "ккал" },
+                      { label: "Суточный расход (TDEE)", value: calcResult.tdee, unit: "ккал" },
+                      { label: "Ваша цель", value: calcResult.target, unit: "ккал" },
+                    ].map((m) => (
+                      <div key={m.label} className="rounded-2xl p-4 text-center" style={{ background: "linear-gradient(135deg, rgba(0,229,255,0.08), rgba(168,85,247,0.08))", border: "1px solid rgba(0,229,255,0.2)" }}>
+                        <div className="font-display text-2xl font-bold gradient-text">{m.value}</div>
+                        <div className="text-white/40 text-xs mt-1">{m.unit}</div>
+                        <div className="text-white/30 text-xs mt-0.5 leading-tight">{m.label}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* БЖУ */}
+                  <div className="rounded-2xl p-5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    <p className="text-white/50 text-xs uppercase tracking-wide mb-3">Рекомендации по БЖУ</p>
+                    <div className="grid grid-cols-3 gap-4">
+                      {[
+                        { label: "Белки", value: calcResult.protein, color: "#00e5ff", pct: Math.round(calcResult.protein * 4 / calcResult.target * 100) },
+                        { label: "Жиры", value: calcResult.fat, color: "#a855f7", pct: Math.round(calcResult.fat * 9 / calcResult.target * 100) },
+                        { label: "Углеводы", value: calcResult.carbs, color: "#f0abfc", pct: Math.round(calcResult.carbs * 4 / calcResult.target * 100) },
+                      ].map((b) => (
+                        <div key={b.label} className="text-center">
+                          <div className="font-display text-xl font-bold" style={{ color: b.color }}>{b.value}г</div>
+                          <div className="text-white/40 text-xs">{b.label}</div>
+                          <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
+                            <div className="h-full rounded-full transition-all duration-700" style={{ width: `${b.pct}%`, background: b.color }} />
+                          </div>
+                          <div className="text-white/25 text-xs mt-1">{b.pct}%</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Доп. метрики */}
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { icon: "Scale", label: "ИМТ", value: String(calcResult.bmi), unit: calcResult.bmi < 18.5 ? "дефицит" : calcResult.bmi < 25 ? "норма" : calcResult.bmi < 30 ? "избыток" : "ожирение" },
+                      { icon: "Target", label: "Идеальный вес", value: String(calcResult.idealWeight), unit: "кг" },
+                      { icon: "Droplets", label: "Норма воды", value: String(calcResult.water), unit: "мл/день" },
+                    ].map((m) => (
+                      <div key={m.label} className="rounded-2xl p-4 text-center" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                        <Icon name={m.icon} size={18} className="mx-auto mb-2" style={{ color: "var(--neon-cyan)" }} />
+                        <div className="font-display text-xl font-bold text-white">{m.value}</div>
+                        <div className="text-white/35 text-xs mt-0.5">{m.unit}</div>
+                        <div className="text-white/25 text-xs">{m.label}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <a href="#chat" className="flex items-center justify-center gap-2 btn-outline-neon w-full py-3 rounded-2xl text-sm font-bold">
+                    <Icon name="Bot" size={16} />
+                    Получить персональный план от ИИ
                   </a>
                 </div>
               )}
