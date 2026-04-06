@@ -1,628 +1,499 @@
 import { useState, useRef, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 
-type CalcInput = { age: string; weight: string; height: string; gender: string; activity: string; goal: string; };
-type CalcResult = { bmr: number; tdee: number; target: number; protein: number; fat: number; carbs: number; bmi: number; idealWeight: number; water: number; };
+// ─── Types ────────────────────────────────────────────────────────────────────
+type CalcInput = {
+  age: string; weight: string; height: string;
+  gender: string; activity: string; goal: string;
+};
+type CalcResult = {
+  bmr: number; tdee: number; target: number;
+  protein: number; fat: number; carbs: number;
+  bmi: number; bmiLabel: string; idealWeight: number; water: number;
+};
+interface ChatMessage { role: "user" | "ai"; text: string; time: string; }
 
+// ─── Calc logic ───────────────────────────────────────────────────────────────
+const ACT_MAP: Record<string, number> = {
+  sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725, veryactive: 1.9,
+};
+const GOAL_MAP: Record<string, number> = {
+  loss: -500, softloss: -250, maintain: 0, gain: 250, fastgain: 500,
+};
+function bmiLabel(bmi: number) {
+  if (bmi < 18.5) return "Дефицит";
+  if (bmi < 25) return "Норма";
+  if (bmi < 30) return "Избыток";
+  return "Ожирение";
+}
 function calcCalories(inp: CalcInput): CalcResult | null {
   const age = parseFloat(inp.age), w = parseFloat(inp.weight), h = parseFloat(inp.height);
-  if (!age || !w || !h) return null;
+  if (!age || !w || !h || age <= 0 || w <= 0 || h <= 0) return null;
   const bmr = inp.gender === "male"
     ? 10 * w + 6.25 * h - 5 * age + 5
     : 10 * w + 6.25 * h - 5 * age - 161;
-  const actMap: Record<string, number> = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725, veryactive: 1.9 };
-  const tdee = Math.round(bmr * (actMap[inp.activity] ?? 1.375));
-  const goalMap: Record<string, number> = { loss: -500, softloss: -250, maintain: 0, gain: 250, fastgain: 500 };
-  const target = tdee + (goalMap[inp.goal] ?? 0);
+  const tdee = Math.round(bmr * (ACT_MAP[inp.activity] ?? 1.375));
+  const target = Math.max(1200, tdee + (GOAL_MAP[inp.goal] ?? 0));
   const protein = Math.round(w * 2.0);
   const fat = Math.round((target * 0.25) / 9);
-  const carbs = Math.round((target - protein * 4 - fat * 9) / 4);
+  const carbs = Math.max(0, Math.round((target - protein * 4 - fat * 9) / 4));
   const bmi = Math.round((w / ((h / 100) ** 2)) * 10) / 10;
-  const idealWeight = inp.gender === "male" ? Math.round(50 + 0.91 * (h - 152.4)) : Math.round(45.5 + 0.91 * (h - 152.4));
+  const idealWeight = inp.gender === "male"
+    ? Math.round(50 + 0.91 * (h - 152.4))
+    : Math.round(45.5 + 0.91 * (h - 152.4));
   const water = Math.round(w * 35);
-  return { bmr: Math.round(bmr), tdee, target, protein, fat, carbs, bmi, idealWeight, water };
+  return { bmr: Math.round(bmr), tdee, target, protein, fat, carbs, bmi, bmiLabel: bmiLabel(bmi), idealWeight, water };
 }
 
-const HERO_IMAGE = "https://cdn.poehali.dev/projects/9d3d81c9-90d3-41a8-8ade-c77a796fe46d/files/950827a8-2658-41cc-8978-1de8fa431049.jpg";
-
-const NAV_LINKS = [
-  { label: "Главная", href: "#hero" },
-  { label: "Преимущества", href: "#advantages" },
-  { label: "Калькулятор", href: "#calculator" },
-  { label: "Отзывы", href: "#reviews" },
-  { label: "Контакты", href: "#contacts" },
+// ─── AI chat ─────────────────────────────────────────────────────────────────
+const AI_KB: [string[], string][] = [
+  [["привет", "hello", "добрый"], "Привет! Я AI-диетолог. Введи свои параметры в калькулятор, затем задай любой вопрос о питании 🥦"],
+  [["белк", "протеин"], "Белок — строительный материал мышц. Норма: 1.6–2.2 г на кг веса. При похудении держи ближе к верхней границе — это сохраняет мышцы."],
+  [["жир"], "Жиры необходимы для гормонов и усвоения витаминов. Оптимально: 25–35% от калорий. Приоритет — ненасыщенные (оливковое масло, орехи, авокадо)."],
+  [["углевод", "карб"], "Углеводы — основной источник энергии. Предпочитай сложные: гречка, овсянка, бурый рис, овощи. Они медленнее усваиваются и дольше держат сытость."],
+  [["вод", "пить"], "Норма воды — 30–35 мл на кг веса в день. При тренировках и жаре добавляй ещё 300–500 мл. Пей равномерно в течение дня."],
+  [["имт", "вес", "индекс"], "ИМТ — это индекс массы тела (вес ÷ рост²). Норма: 18.5–24.9. Но он не учитывает состав тела — спортсмен с мышцами может иметь «лишний» ИМТ."],
+  [["похуде", "дефицит", "сжечь"], "Для похудения создай дефицит 300–500 ккал от TDEE. Резкое ограничение (более 1000 ккал) тормозит метаболизм. Темп: 0.5–1 кг в неделю — оптимально."],
+  [["набра", "масса", "профицит"], "Для набора массы добавь 200–300 ккал к TDEE. Приоритет — белок и тренировки. Медленный набор (0.5 кг/мес) — меньше жира."],
+  [["завтрак", "утр"], "Завтрак важен для запуска метаболизма. Оптимально: белок + сложные углеводы. Например, яйца + овсянка или творог + цельнозерновой хлеб."],
+  [["калор", "tdee", "bmr"], "BMR — это сколько калорий тратит твой организм в покое. TDEE = BMR × коэффициент активности. Это твоя реальная суточная потребность."],
+  [["препарат", "таблетк", "лекарств"], "При приёме медикаментов некоторые продукты могут влиять на усвоение. Это важный вопрос — обязательно обсуди с лечащим врачом или фармацевтом."],
+  [["диабет", "сахар"], "При диабете критически важен гликемический индекс продуктов. Избегай быстрых углеводов, ешь часто и небольшими порциями. Обязательно работай с врачом."],
+  [["спорт", "трениров", "фитнес"], "При регулярных тренировках увеличь белок до 2–2.2 г/кг. Углеводы лучше есть до и после тренировки. Не забывай про восстановление — сон не менее 7–8 часов."],
 ];
 
-const ADVANTAGES = [
-  { icon: "Zap", title: "Молниеносно", text: "Запускаем проект за 24 часа. Никаких долгих согласований — только результат." },
-  { icon: "Shield", title: "Надёжно", text: "Гарантия качества на все работы. Прозрачный договор и чёткие сроки." },
-  { icon: "TrendingUp", title: "Эффективно", text: "Каждое решение измеримо. Ваш рост — наша главная метрика." },
-  { icon: "Headphones", title: "Поддержка 24/7", text: "Всегда на связи. Решаем вопросы в течение часа в любое время суток." },
-  { icon: "Star", title: "Топовое качество", text: "Только лучшие специалисты с опытом 5+ лет работают над вашим проектом." },
-  { icon: "Layers", title: "Комплексный подход", text: "Берём на себя всё — от стратегии до реализации и аналитики." },
-];
-
-const REVIEWS = [
-  { name: "Алексей М.", role: "CEO, TechStart", text: "Результат превзошёл все ожидания. За 2 недели получили полноценный продукт, который раньше делали бы месяц. Команда реально погружается в задачу.", rating: 5 },
-  { name: "Мария К.", role: "Маркетолог", text: "Наконец-то нашла подрядчика, который говорит на языке бизнеса, а не технарей. Всё чётко, понятно и в срок. Рекомендую без оговорок!", rating: 5 },
-  { name: "Дмитрий С.", role: "Основатель, E-com", text: "Работаем уже третий проект вместе. Каждый раз удивляют скоростью и вниманием к деталям. Это тот редкий случай, когда партнёр думает о твоём бизнесе.", rating: 5 },
-];
-
-const AI_RESPONSES: Record<string, string> = {
-  default: "Привет! Я ИИ-консультант. Спросите меня о наших услугах, ценах или сроках — с удовольствием помогу!",
-  цена: "Стоимость зависит от объёма задачи. Базовый пакет — от 15 000 ₽, стандарт — от 45 000 ₽, премиум — от 90 000 ₽. Используйте калькулятор на сайте для точного расчёта.",
-  срок: "Стандартные сроки: базовый проект — 3-5 дней, стандарт — 1-2 недели, крупные проекты — 3-4 недели. При необходимости — срочный выпуск за доп. плату.",
-  гарантия: "Даём гарантию 12 месяцев на все работы. Если что-то пойдёт не так — бесплатно исправим в рамках ТЗ.",
-  контакт: "Свяжитесь с нами: телефон +7 (999) 123-45-67, email hello@example.ru или заполните форму ниже — ответим в течение 15 минут.",
-  привет: "Привет! Рад видеть вас. Чем могу помочь? Расскажите о вашей задаче — подберём оптимальное решение.",
-  услуг: "Мы предлагаем: разработку сайтов и приложений, настройку рекламы, SEO-продвижение, дизайн и брендинг, автоматизацию бизнес-процессов.",
-};
-
-function getAIResponse(message: string): string {
-  const lower = message.toLowerCase();
-  for (const key of Object.keys(AI_RESPONSES)) {
-    if (key !== "default" && lower.includes(key)) return AI_RESPONSES[key];
+function getAIResponse(msg: string, result: CalcResult | null): string {
+  const lower = msg.toLowerCase();
+  for (const [keys, resp] of AI_KB) {
+    if (keys.some((k) => lower.includes(k))) return resp;
   }
-  return AI_RESPONSES.default;
-}
-
-interface ChatMessage {
-  role: "user" | "ai";
-  text: string;
-  time: string;
+  if (result) {
+    return `На основе твоих данных: цель — ${result.target} ккал/день, белок — ${result.protein}г, жиры — ${result.fat}г, углеводы — ${result.carbs}г. Уточни свой вопрос — я помогу разобраться детальнее!`;
+  }
+  return "Сначала введи свои параметры в калькулятор — тогда смогу дать персональные рекомендации. Или задай общий вопрос о питании!";
 }
 
 function getTime() {
   return new Date().toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" });
 }
 
-const Index = () => {
-  const [calcInput, setCalcInput] = useState<CalcInput>({ age: "", weight: "", height: "", gender: "female", activity: "moderate", goal: "maintain" });
-  const [calcResult, setCalcResult] = useState<CalcResult | null>(null);
+// ─── Sub-components ───────────────────────────────────────────────────────────
+function RadioGroup({ label, options, value, onChange }: {
+  label: string;
+  options: { v: string; label: string; sub?: string }[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{label}</p>
+      <div className="flex flex-col gap-1.5">
+        {options.map((o) => (
+          <label key={o.v} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer border transition-all duration-150 ${value === o.v ? "border-emerald-500 bg-emerald-50" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
+            <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${value === o.v ? "border-emerald-500" : "border-gray-300"}`}>
+              {value === o.v && <div className="w-2 h-2 rounded-full bg-emerald-500" />}
+            </div>
+            <input type="radio" className="hidden" value={o.v} checked={value === o.v} onChange={() => onChange(o.v)} />
+            <span className="text-sm font-medium text-gray-700">{o.label}</span>
+            {o.sub && <span className="text-xs text-gray-400 ml-auto">{o.sub}</span>}
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    { role: "ai", text: AI_RESPONSES.default, time: getTime() },
+function NumInput({ label, value, onChange, placeholder, unit }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder: string; unit: string;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{label}</p>
+      <div className="relative">
+        <input
+          type="number"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 pr-9 text-sm text-gray-800 placeholder-gray-300 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all"
+        />
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">{unit}</span>
+      </div>
+    </div>
+  );
+}
+
+function MacroBar({ label, value, kcal, color, pct }: {
+  label: string; value: number; kcal: number; color: string; pct: number;
+}) {
+  return (
+    <div>
+      <div className="flex justify-between items-baseline mb-1">
+        <span className="text-xs font-semibold text-gray-500">{label}</span>
+        <span className="text-sm font-bold" style={{ color }}>{value}г <span className="text-xs font-normal text-gray-400">({kcal} ккал)</span></span>
+      </div>
+      <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(pct, 100)}%`, background: color }} />
+      </div>
+      <div className="text-right text-xs text-gray-400 mt-0.5">{pct}%</div>
+    </div>
+  );
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+const Index = () => {
+  const [inp, setInp] = useState<CalcInput>({
+    age: "", weight: "", height: "", gender: "female", activity: "moderate", goal: "maintain",
+  });
+  const [result, setResult] = useState<CalcResult | null>(null);
+  const [calcError, setCalcError] = useState("");
+
+  const [chatOpen, setChatOpen] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    { role: "ai", text: "Привет! Я AI-диетолог. Введи свои параметры в калькулятор, затем задай любой вопрос о питании 🥦", time: getTime() },
   ]);
   const [chatInput, setChatInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
-
-  const [contactForm, setContactForm] = useState({ name: "", phone: "", email: "" });
-  const [navOpen, setNavOpen] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const chatInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatMessages, isTyping]);
+  }, [messages, isTyping]);
+
+  useEffect(() => {
+    if (chatOpen) setTimeout(() => chatInputRef.current?.focus(), 100);
+  }, [chatOpen]);
 
   function handleCalc() {
-    setCalcResult(calcCalories(calcInput));
+    const r = calcCalories(inp);
+    if (!r) { setCalcError("Заполни возраст, вес и рост"); return; }
+    setCalcError("");
+    setResult(r);
   }
 
-  function sendMessage() {
+  function sendMsg() {
     const text = chatInput.trim();
-    if (!text) return;
-    const userMsg: ChatMessage = { role: "user", text, time: getTime() };
-    setChatMessages((prev) => [...prev, userMsg]);
+    if (!text || isTyping) return;
+    setMessages((prev) => [...prev, { role: "user", text, time: getTime() }]);
     setChatInput("");
     setIsTyping(true);
     setTimeout(() => {
       setIsTyping(false);
-      setChatMessages((prev) => [...prev, { role: "ai", text: getAIResponse(text), time: getTime() }]);
-    }, 1200 + Math.random() * 800);
+      setMessages((prev) => [...prev, { role: "ai", text: getAIResponse(text, result), time: getTime() }]);
+    }, 900 + Math.random() * 600);
   }
 
+  const bmiColor = result
+    ? result.bmi < 18.5 ? "#f59e0b"
+      : result.bmi < 25 ? "#10b981"
+        : result.bmi < 30 ? "#f97316" : "#ef4444"
+    : "#10b981";
+
   return (
-    <div className="min-h-screen" style={{ background: "var(--dark-bg)" }}>
+    <div className="min-h-screen bg-gray-50 font-sans">
 
-      {/* NAV */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-white/5">
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between">
-          <div className="font-display text-xl font-bold gradient-text tracking-wider">ЛОГОТИП</div>
-          <div className="hidden md:flex items-center gap-8">
-            {NAV_LINKS.map((l) => (
-              <a key={l.href} href={l.href} className="text-sm text-white/60 hover:text-white transition-colors duration-200">
-                {l.label}
-              </a>
-            ))}
-          </div>
-          <a href="#contacts" className="hidden md:block btn-neon px-5 py-2 rounded-full text-sm font-bold">
-            Оставить заявку
-          </a>
-          <button className="md:hidden text-white/70" onClick={() => setNavOpen(!navOpen)}>
-            <Icon name={navOpen ? "X" : "Menu"} size={24} />
-          </button>
-        </div>
-        {navOpen && (
-          <div className="md:hidden glass border-t border-white/5 px-4 py-4 flex flex-col gap-4">
-            {NAV_LINKS.map((l) => (
-              <a key={l.href} href={l.href} onClick={() => setNavOpen(false)} className="text-white/70 hover:text-white py-1">
-                {l.label}
-              </a>
-            ))}
-            <a href="#contacts" onClick={() => setNavOpen(false)} className="btn-neon text-center py-2 rounded-full text-sm font-bold">
-              Оставить заявку
-            </a>
-          </div>
-        )}
-      </nav>
-
-      {/* HERO */}
-      <section id="hero" className="relative min-h-screen flex items-center overflow-hidden grid-bg">
-        <div className="orb" style={{ width: 500, height: 500, background: "rgba(0,229,255,0.12)", top: "10%", left: "-10%" }} />
-        <div className="orb" style={{ width: 400, height: 400, background: "rgba(168,85,247,0.12)", bottom: "5%", right: "-5%", animationDelay: "3s" }} />
-        <div className="absolute inset-0">
-          <img src={HERO_IMAGE} alt="Hero" className="w-full h-full object-cover opacity-20" />
-          <div className="absolute inset-0" style={{ background: "linear-gradient(to right, var(--dark-bg) 40%, transparent 80%), linear-gradient(to top, var(--dark-bg) 10%, transparent 50%)" }} />
-        </div>
-
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-8 pt-24 pb-16">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 glass px-4 py-2 rounded-full text-xs font-medium mb-6 animate-fade-up" style={{ color: "var(--neon-cyan)" }}>
-              <div className="w-2 h-2 rounded-full animate-pulse-glow" style={{ background: "var(--neon-cyan)" }} />
-              Новый уровень эффективности
+      {/* ── HEADER ── */}
+      <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-emerald-500 flex items-center justify-center">
+              <Icon name="Flame" size={15} className="text-white" />
             </div>
-            <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl font-bold leading-tight mb-6 animate-fade-up-delay-1">
-              Ваш бизнес<br />
-              <span className="gradient-text">на новой высоте</span>
-            </h1>
-            <p className="text-lg text-white/60 mb-8 leading-relaxed animate-fade-up-delay-2">
-              Профессиональные решения для роста вашего дела. Быстро, надёжно, с гарантией результата.
-              Уже более 500 клиентов доверились нам.
-            </p>
-            <div className="flex flex-wrap gap-4 animate-fade-up-delay-3">
-              <a href="#contacts" className="btn-neon px-8 py-4 rounded-2xl text-base font-bold flex items-center gap-2">
-                Начать сейчас
-                <Icon name="ArrowRight" size={18} />
-              </a>
-              <a href="#calculator" className="btn-outline-neon px-8 py-4 rounded-2xl text-base font-bold flex items-center gap-2">
-                <Icon name="Calculator" size={18} />
-                Рассчитать цену
-              </a>
-            </div>
-
-            <div className="flex flex-wrap gap-8 mt-12 animate-fade-up-delay-3">
-              {[["500+", "клиентов"], ["98%", "довольны"], ["24ч", "запуск"]].map(([num, label]) => (
-                <div key={label} className="text-center">
-                  <div className="font-display text-3xl font-bold gradient-text">{num}</div>
-                  <div className="text-white/40 text-sm mt-1">{label}</div>
-                </div>
-              ))}
-            </div>
+            <span className="font-bold text-gray-800 text-sm tracking-tight">AI Calorie Assistant</span>
           </div>
+          <span className="text-xs text-gray-400 hidden sm:block">Бесплатный калькулятор калорий с AI</span>
+        </div>
+      </header>
+
+      {/* ── MAIN ── */}
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+
+        {/* Title */}
+        <div className="mb-8 text-center">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Рассчитай свою норму калорий</h1>
+          <p className="text-gray-500 text-sm">Персональный расчёт BMR, TDEE и БЖУ по формуле Миффлина-Сан Жеора</p>
         </div>
 
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-white/30">
-          <span className="text-xs tracking-widest uppercase">Скролл</span>
-          <Icon name="ChevronDown" size={20} />
-        </div>
-      </section>
+        {/* ── Two-column layout ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-      {/* ADVANTAGES */}
-      <section id="advantages" className="py-24 section-glow relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-8">
-          <div className="text-center mb-16">
-            <p className="text-sm font-medium mb-3 uppercase tracking-widest" style={{ color: "var(--neon-cyan)" }}>Почему мы</p>
-            <h2 className="font-display text-4xl sm:text-5xl font-bold text-white mb-4">
-              Наши <span className="gradient-text">преимущества</span>
+          {/* LEFT — Calculator */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+            <h2 className="font-bold text-gray-800 text-base flex items-center gap-2">
+              <Icon name="Calculator" size={16} className="text-emerald-500" />
+              Калькулятор
             </h2>
-            <p className="text-white/50 text-lg max-w-xl mx-auto">
-              Мы не просто выполняем задачи — мы строим долгосрочные партнёрства
-            </p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {ADVANTAGES.map((a, i) => (
-              <div key={i} className="glass glass-hover rounded-2xl p-6 flex flex-col gap-4">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: "rgba(0,229,255,0.1)", border: "1px solid rgba(0,229,255,0.2)" }}>
-                  <Icon name={a.icon} size={22} style={{ color: "var(--neon-cyan)" }} />
-                </div>
-                <h3 className="font-display text-xl font-semibold text-white">{a.title}</h3>
-                <p className="text-white/50 text-sm leading-relaxed">{a.text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* CALCULATOR */}
-      <section id="calculator" className="py-24 relative overflow-hidden">
-        <div className="orb" style={{ width: 400, height: 400, background: "rgba(168,85,247,0.08)", top: "20%", right: "0" }} />
-        <div className="max-w-7xl mx-auto px-4 sm:px-8">
-          <div className="text-center mb-12">
-            <p className="text-sm font-medium mb-3 uppercase tracking-widest" style={{ color: "var(--neon-violet)" }}>Персональный расчёт</p>
-            <h2 className="font-display text-4xl sm:text-5xl font-bold text-white mb-4">
-              <span className="neon-violet-text">Калькулятор</span> калорий
-            </h2>
-            <p className="text-white/50 text-lg max-w-xl mx-auto">BMR → TDEE → цель → БЖУ → ИМТ и норма воды</p>
-          </div>
-
-          <div className="max-w-3xl mx-auto glass rounded-3xl p-8 sm:p-10">
-            <div className="space-y-6">
-
-              {/* Пол */}
-              <div>
-                <p className="text-white/60 text-xs font-medium mb-3 uppercase tracking-wide">Пол</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {[{ v: "female", label: "Женщина", icon: "♀" }, { v: "male", label: "Мужчина", icon: "♂" }].map((o) => (
-                    <button key={o.v} onClick={() => setCalcInput((p) => ({ ...p, gender: o.v }))}
-                      className={`rounded-xl py-3 text-sm font-semibold border transition-all duration-200 ${calcInput.gender === o.v ? "border-purple-400 bg-purple-400/10 text-white" : "border-white/10 text-white/50 hover:border-white/25"}`}>
-                      {o.icon} {o.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Возраст / Вес / Рост */}
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { key: "age", label: "Возраст", placeholder: "лет", unit: "лет" },
-                  { key: "weight", label: "Вес", placeholder: "кг", unit: "кг" },
-                  { key: "height", label: "Рост", placeholder: "см", unit: "см" },
-                ].map((f) => (
-                  <div key={f.key}>
-                    <p className="text-white/60 text-xs font-medium mb-2 uppercase tracking-wide">{f.label}</p>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        value={calcInput[f.key as keyof CalcInput]}
-                        onChange={(e) => setCalcInput((p) => ({ ...p, [f.key]: e.target.value }))}
-                        placeholder={f.placeholder}
-                        className="w-full rounded-xl px-3 py-3 pr-9 text-sm text-white placeholder-white/25 outline-none transition-all text-center"
-                        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
-                        onFocus={(e) => (e.target.style.borderColor = "rgba(168,85,247,0.5)")}
-                        onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
-                      />
-                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/25 text-xs">{f.unit}</span>
-                    </div>
-                  </div>
+            {/* Gender */}
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Пол</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[{ v: "female", label: "Женщина" }, { v: "male", label: "Мужчина" }].map((o) => (
+                  <button key={o.v} onClick={() => setInp((p) => ({ ...p, gender: o.v }))}
+                    className={`py-2.5 rounded-xl text-sm font-semibold border transition-all duration-150 ${inp.gender === o.v ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-gray-200 text-gray-600 hover:border-gray-300"}`}>
+                    {o.label}
+                  </button>
                 ))}
               </div>
+            </div>
 
-              {/* Активность */}
-              <div>
-                <p className="text-white/60 text-xs font-medium mb-3 uppercase tracking-wide">Уровень активности</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {[
-                    { v: "sedentary", label: "Сидячий образ жизни", sub: "×1.2" },
-                    { v: "light", label: "Лёгкая активность", sub: "×1.375" },
-                    { v: "moderate", label: "Умеренная активность", sub: "×1.55" },
-                    { v: "active", label: "Высокая активность", sub: "×1.725" },
-                    { v: "veryactive", label: "Очень высокая", sub: "×1.9" },
-                  ].map((o) => (
-                    <button key={o.v} onClick={() => setCalcInput((p) => ({ ...p, activity: o.v }))}
-                      className={`rounded-xl px-4 py-2.5 text-left text-sm border transition-all duration-200 flex justify-between items-center ${calcInput.activity === o.v ? "border-cyan-400 bg-cyan-400/10 text-white" : "border-white/10 text-white/50 hover:border-white/25"}`}>
-                      <span>{o.label}</span>
-                      <span className="text-xs opacity-60 ml-2">{o.sub}</span>
-                    </button>
-                  ))}
+            {/* Age / Weight / Height */}
+            <div className="grid grid-cols-3 gap-3">
+              <NumInput label="Возраст" value={inp.age} onChange={(v) => setInp((p) => ({ ...p, age: v }))} placeholder="30" unit="лет" />
+              <NumInput label="Вес" value={inp.weight} onChange={(v) => setInp((p) => ({ ...p, weight: v }))} placeholder="70" unit="кг" />
+              <NumInput label="Рост" value={inp.height} onChange={(v) => setInp((p) => ({ ...p, height: v }))} placeholder="170" unit="см" />
+            </div>
+
+            {/* Activity */}
+            <RadioGroup
+              label="Активность"
+              value={inp.activity}
+              onChange={(v) => setInp((p) => ({ ...p, activity: v }))}
+              options={[
+                { v: "sedentary", label: "Сидячий образ жизни", sub: "×1.2" },
+                { v: "light", label: "1–3 тренировки в неделю", sub: "×1.375" },
+                { v: "moderate", label: "3–5 тренировок в неделю", sub: "×1.55" },
+                { v: "active", label: "Ежедневные тренировки", sub: "×1.725" },
+                { v: "veryactive", label: "Интенсивный спорт/работа", sub: "×1.9" },
+              ]}
+            />
+
+            {/* Goal */}
+            <RadioGroup
+              label="Цель"
+              value={inp.goal}
+              onChange={(v) => setInp((p) => ({ ...p, goal: v }))}
+              options={[
+                { v: "loss", label: "Похудение", sub: "−500 ккал" },
+                { v: "softloss", label: "Мягкое похудение", sub: "−250 ккал" },
+                { v: "maintain", label: "Поддержание веса", sub: "±0 ккал" },
+                { v: "gain", label: "Набор мышечной массы", sub: "+250 ккал" },
+                { v: "fastgain", label: "Быстрый набор", sub: "+500 ккал" },
+              ]}
+            />
+
+            {calcError && (
+              <p className="text-red-500 text-xs flex items-center gap-1">
+                <Icon name="AlertCircle" size={13} /> {calcError}
+              </p>
+            )}
+
+            <button
+              onClick={handleCalc}
+              className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white font-bold text-sm transition-all duration-150 flex items-center justify-center gap-2 shadow-sm"
+            >
+              <Icon name="Zap" size={16} className="text-white" />
+              Рассчитать
+            </button>
+          </div>
+
+          {/* RIGHT — Result */}
+          <div className="flex flex-col gap-4">
+            {!result ? (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col items-center justify-center text-center h-full min-h-64">
+                <div className="w-14 h-14 rounded-2xl bg-gray-50 flex items-center justify-center mb-4">
+                  <Icon name="BarChart2" size={26} className="text-gray-300" />
                 </div>
+                <p className="text-gray-400 text-sm">Заполни форму слева и нажми<br /><span className="font-semibold text-gray-500">«Рассчитать»</span></p>
               </div>
-
-              {/* Цель */}
-              <div>
-                <p className="text-white/60 text-xs font-medium mb-3 uppercase tracking-wide">Цель</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {[
-                    { v: "loss", label: "Похудение", sub: "−500 ккал" },
-                    { v: "softloss", label: "Мягкое похудение", sub: "−250 ккал" },
-                    { v: "maintain", label: "Поддержание", sub: "±0 ккал" },
-                    { v: "gain", label: "Набор массы", sub: "+250 ккал" },
-                    { v: "fastgain", label: "Быстрый набор", sub: "+500 ккал" },
-                  ].map((o) => (
-                    <button key={o.v} onClick={() => setCalcInput((p) => ({ ...p, goal: o.v }))}
-                      className={`rounded-xl px-3 py-2.5 text-center text-sm border transition-all duration-200 ${calcInput.goal === o.v ? "border-cyan-400 bg-cyan-400/10 text-white" : "border-white/10 text-white/50 hover:border-white/25"}`}>
-                      <div className="font-semibold">{o.label}</div>
-                      <div className="text-xs opacity-60">{o.sub}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <button onClick={handleCalc} className="btn-neon w-full py-4 rounded-2xl text-base font-bold flex items-center justify-center gap-2">
-                <Icon name="Calculator" size={20} />
-                Рассчитать
-              </button>
-
-              {calcResult && (
-                <div className="animate-fade-up space-y-4">
-                  {/* Главные метрики */}
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { label: "Базовый обмен (BMR)", value: calcResult.bmr, unit: "ккал" },
-                      { label: "Суточный расход (TDEE)", value: calcResult.tdee, unit: "ккал" },
-                      { label: "Ваша цель", value: calcResult.target, unit: "ккал" },
-                    ].map((m) => (
-                      <div key={m.label} className="rounded-2xl p-4 text-center" style={{ background: "linear-gradient(135deg, rgba(0,229,255,0.08), rgba(168,85,247,0.08))", border: "1px solid rgba(0,229,255,0.2)" }}>
-                        <div className="font-display text-2xl font-bold gradient-text">{m.value}</div>
-                        <div className="text-white/40 text-xs mt-1">{m.unit}</div>
-                        <div className="text-white/30 text-xs mt-0.5 leading-tight">{m.label}</div>
+            ) : (
+              <>
+                {/* Calories card */}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Ваша цель</p>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-4xl font-black text-gray-900">{result.target}</span>
+                        <span className="text-gray-400 text-sm font-medium">ккал/день</span>
                       </div>
-                    ))}
-                  </div>
-
-                  {/* БЖУ */}
-                  <div className="rounded-2xl p-5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                    <p className="text-white/50 text-xs uppercase tracking-wide mb-3">Рекомендации по БЖУ</p>
-                    <div className="grid grid-cols-3 gap-4">
-                      {[
-                        { label: "Белки", value: calcResult.protein, color: "#00e5ff", pct: Math.round(calcResult.protein * 4 / calcResult.target * 100) },
-                        { label: "Жиры", value: calcResult.fat, color: "#a855f7", pct: Math.round(calcResult.fat * 9 / calcResult.target * 100) },
-                        { label: "Углеводы", value: calcResult.carbs, color: "#f0abfc", pct: Math.round(calcResult.carbs * 4 / calcResult.target * 100) },
-                      ].map((b) => (
-                        <div key={b.label} className="text-center">
-                          <div className="font-display text-xl font-bold" style={{ color: b.color }}>{b.value}г</div>
-                          <div className="text-white/40 text-xs">{b.label}</div>
-                          <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
-                            <div className="h-full rounded-full transition-all duration-700" style={{ width: `${b.pct}%`, background: b.color }} />
-                          </div>
-                          <div className="text-white/25 text-xs mt-1">{b.pct}%</div>
-                        </div>
-                      ))}
+                    </div>
+                    <div className="text-right text-xs text-gray-400 space-y-1">
+                      <div>BMR: <span className="font-semibold text-gray-600">{result.bmr}</span></div>
+                      <div>TDEE: <span className="font-semibold text-gray-600">{result.tdee}</span></div>
                     </div>
                   </div>
 
-                  {/* Доп. метрики */}
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { icon: "Scale", label: "ИМТ", value: String(calcResult.bmi), unit: calcResult.bmi < 18.5 ? "дефицит" : calcResult.bmi < 25 ? "норма" : calcResult.bmi < 30 ? "избыток" : "ожирение" },
-                      { icon: "Target", label: "Идеальный вес", value: String(calcResult.idealWeight), unit: "кг" },
-                      { icon: "Droplets", label: "Норма воды", value: String(calcResult.water), unit: "мл/день" },
-                    ].map((m) => (
-                      <div key={m.label} className="rounded-2xl p-4 text-center" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                        <Icon name={m.icon} size={18} className="mx-auto mb-2" style={{ color: "var(--neon-cyan)" }} />
-                        <div className="font-display text-xl font-bold text-white">{m.value}</div>
-                        <div className="text-white/35 text-xs mt-0.5">{m.unit}</div>
-                        <div className="text-white/25 text-xs">{m.label}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <a href="#chat" className="flex items-center justify-center gap-2 btn-outline-neon w-full py-3 rounded-2xl text-sm font-bold">
-                    <Icon name="Bot" size={16} />
-                    Получить персональный план от ИИ
-                  </a>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* AI CHAT */}
-      <section id="chat" className="py-24 section-glow relative">
-        <div className="orb" style={{ width: 350, height: 350, background: "rgba(0,229,255,0.07)", bottom: "0", left: "5%" }} />
-        <div className="max-w-7xl mx-auto px-4 sm:px-8">
-          <div className="text-center mb-12">
-            <p className="text-sm font-medium mb-3 uppercase tracking-widest" style={{ color: "var(--neon-cyan)" }}>ИИ-консультант</p>
-            <h2 className="font-display text-4xl sm:text-5xl font-bold text-white mb-4">
-              Чат с <span className="gradient-text">ИИ агентом</span>
-            </h2>
-            <p className="text-white/50 text-lg max-w-xl mx-auto">
-              Задайте любой вопрос — ИИ ответит мгновенно
-            </p>
-          </div>
-
-          <div className="max-w-2xl mx-auto glass rounded-3xl overflow-hidden" style={{ border: "1px solid rgba(0,229,255,0.15)" }}>
-            <div className="px-6 py-4 border-b border-white/5 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full flex items-center justify-center animate-pulse-glow" style={{ background: "linear-gradient(135deg, var(--neon-cyan), var(--neon-violet))" }}>
-                <Icon name="Bot" size={18} className="text-gray-900" />
-              </div>
-              <div>
-                <div className="text-white font-semibold text-sm">ИИ Ассистент</div>
-                <div className="text-xs flex items-center gap-1" style={{ color: "var(--neon-cyan)" }}>
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
-                  Онлайн
-                </div>
-              </div>
-              <div className="ml-auto text-white/30 text-xs hidden sm:block">Спросите о ценах или сроках</div>
-            </div>
-
-            <div className="h-80 overflow-y-auto p-5 space-y-4 scrollbar-thin">
-              {chatMessages.map((msg, i) => (
-                <div key={i} className={`chat-bubble-in flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
-                  {msg.role === "ai" && (
-                    <div className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center" style={{ background: "linear-gradient(135deg, var(--neon-cyan), var(--neon-violet))" }}>
-                      <Icon name="Bot" size={14} className="text-gray-900" />
-                    </div>
-                  )}
-                  <div
-                    className={`max-w-xs rounded-2xl px-4 py-3 text-sm leading-relaxed ${msg.role === "ai" ? "rounded-tl-sm text-white/90" : "rounded-tr-sm font-medium text-gray-900"}`}
-                    style={msg.role === "ai"
-                      ? { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }
-                      : { background: "linear-gradient(135deg, var(--neon-cyan), var(--neon-violet))" }
-                    }
-                  >
-                    {msg.text}
-                    <div className={`text-xs mt-1 ${msg.role === "ai" ? "text-white/25" : "text-black/30"}`}>{msg.time}</div>
+                  {/* BJU bars */}
+                  <div className="space-y-3">
+                    <MacroBar label="🥩 Белки" value={result.protein} kcal={result.protein * 4}
+                      color="#10b981" pct={Math.round(result.protein * 4 / result.target * 100)} />
+                    <MacroBar label="🧈 Жиры" value={result.fat} kcal={result.fat * 9}
+                      color="#f59e0b" pct={Math.round(result.fat * 9 / result.target * 100)} />
+                    <MacroBar label="🍚 Углеводы" value={result.carbs} kcal={result.carbs * 4}
+                      color="#3b82f6" pct={Math.round(result.carbs * 4 / result.target * 100)} />
                   </div>
                 </div>
-              ))}
-              {isTyping && (
-                <div className="chat-bubble-in flex gap-3">
-                  <div className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center" style={{ background: "linear-gradient(135deg, var(--neon-cyan), var(--neon-violet))" }}>
-                    <Icon name="Bot" size={14} className="text-gray-900" />
+
+                {/* Extra metrics */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center">
+                    <div className="text-xl font-black" style={{ color: bmiColor }}>{result.bmi}</div>
+                    <div className="text-xs font-semibold mt-0.5" style={{ color: bmiColor }}>{result.bmiLabel}</div>
+                    <div className="text-xs text-gray-400 mt-1">ИМТ</div>
                   </div>
-                  <div className="rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                    {[0, 1, 2].map((i) => (
-                      <div key={i} className="w-2 h-2 rounded-full" style={{ background: "var(--neon-cyan)", animation: `blink 1s ease-in-out ${i * 0.2}s infinite` }} />
-                    ))}
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center">
+                    <div className="text-xl font-black text-gray-800">{result.idealWeight}</div>
+                    <div className="text-xs text-gray-400 mt-0.5">кг</div>
+                    <div className="text-xs text-gray-400 mt-1">Идеал. вес</div>
+                  </div>
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center">
+                    <div className="text-xl font-black text-blue-500">{(result.water / 1000).toFixed(1)}</div>
+                    <div className="text-xs text-gray-400 mt-0.5">л/день</div>
+                    <div className="text-xs text-gray-400 mt-1">Вода</div>
                   </div>
                 </div>
-              )}
-              <div ref={chatEndRef} />
-            </div>
 
-            <div className="p-4 border-t border-white/5">
-              <div className="flex gap-3">
-                <input
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                  placeholder="Напишите вопрос..."
-                  className="flex-1 rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 outline-none transition-all"
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
-                  onFocus={(e) => (e.target.style.borderColor = "rgba(0,229,255,0.4)")}
-                  onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
-                />
+                {/* Ask AI button */}
                 <button
-                  onClick={sendMessage}
-                  disabled={!chatInput.trim() || isTyping}
-                  className="w-11 h-11 rounded-xl flex items-center justify-center btn-neon disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+                  onClick={() => setChatOpen(true)}
+                  className="w-full py-3 rounded-xl border-2 border-emerald-500 text-emerald-600 font-bold text-sm hover:bg-emerald-50 transition-all duration-150 flex items-center justify-center gap-2"
                 >
-                  <Icon name="Send" size={16} className="text-gray-900" />
+                  <Icon name="Bot" size={16} />
+                  Спросить AI-диетолога
                 </button>
-              </div>
-              <div className="flex flex-wrap gap-2 mt-3">
-                {["Какая цена?", "Сроки?", "Гарантии?", "Контакты"].map((hint) => (
-                  <button
-                    key={hint}
-                    onClick={() => setChatInput(hint)}
-                    className="text-xs px-3 py-1.5 rounded-full transition-all hover:text-white"
-                    style={{ background: "rgba(0,229,255,0.06)", border: "1px solid rgba(0,229,255,0.15)", color: "rgba(0,229,255,0.7)" }}
-                  >
-                    {hint}
-                  </button>
-                ))}
-              </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* ── How it works ── */}
+        <div className="mt-8 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h3 className="font-bold text-gray-700 text-sm mb-4 flex items-center gap-2">
+            <Icon name="Info" size={15} className="text-blue-400" />
+            Как это работает?
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs text-gray-500">
+            <div className="flex flex-col gap-1">
+              <span className="font-bold text-gray-700 text-sm">① BMR</span>
+              <p>Базовый обмен — калории, которые организм тратит в полном покое. Считается по формуле Миффлина-Сан Жеора с учётом пола, возраста, веса и роста.</p>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="font-bold text-gray-700 text-sm">② TDEE</span>
+              <p>Суточный расход с учётом активности. BMR умножается на коэффициент от 1.2 (сидячий) до 1.9 (очень активный). Это реальная потребность в калориях.</p>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="font-bold text-gray-700 text-sm">③ Цель + БЖУ</span>
+              <p>К TDEE прибавляется или вычитается коррекция на цель. Белок — 2 г/кг веса, жиры — 25% калорий, остаток — углеводы.</p>
             </div>
           </div>
         </div>
-      </section>
+      </main>
 
-      {/* REVIEWS */}
-      <section id="reviews" className="py-24 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-8">
-          <div className="text-center mb-12">
-            <p className="text-sm font-medium mb-3 uppercase tracking-widest" style={{ color: "var(--neon-violet)" }}>Отзывы</p>
-            <h2 className="font-display text-4xl sm:text-5xl font-bold text-white mb-4">
-              Что говорят <span className="neon-violet-text">клиенты</span>
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {REVIEWS.map((r, i) => (
-              <div key={i} className="glass glass-hover rounded-2xl p-6 flex flex-col gap-4">
-                <div className="flex gap-1">
-                  {Array.from({ length: r.rating }).map((_, j) => (
-                    <Icon key={j} name="Star" size={16} style={{ color: "var(--neon-cyan)", fill: "var(--neon-cyan)" }} />
-                  ))}
-                </div>
-                <p className="text-white/70 text-sm leading-relaxed flex-1">"{r.text}"</p>
-                <div className="flex items-center gap-3 pt-2 border-t border-white/5">
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm font-display" style={{ background: "linear-gradient(135deg, var(--neon-cyan), var(--neon-violet))", color: "#080c14" }}>
-                    {r.name[0]}
-                  </div>
-                  <div>
-                    <div className="text-white font-semibold text-sm">{r.name}</div>
-                    <div className="text-white/40 text-xs">{r.role}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CONTACTS */}
-      <section id="contacts" className="py-24 relative overflow-hidden">
-        <div className="orb" style={{ width: 500, height: 500, background: "rgba(0,229,255,0.07)", top: "50%", left: "50%", transform: "translate(-50%,-50%)" }} />
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 relative z-10">
-          <div className="max-w-2xl mx-auto text-center">
-            <p className="text-sm font-medium mb-3 uppercase tracking-widest" style={{ color: "var(--neon-cyan)" }}>Связаться</p>
-            <h2 className="font-display text-4xl sm:text-5xl font-bold text-white mb-4">
-              Начнём <span className="gradient-text">работу</span>?
-            </h2>
-            <p className="text-white/50 text-lg mb-10">
-              Оставьте заявку — свяжемся в течение 15 минут и обсудим ваш проект
-            </p>
-
-            <div className="glass rounded-3xl p-8 sm:p-10 text-left">
-              {submitted ? (
-                <div className="text-center py-8 animate-fade-up">
-                  <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-4" style={{ background: "linear-gradient(135deg, var(--neon-cyan), var(--neon-violet))" }}>
-                    <Icon name="Check" size={32} className="text-gray-900" />
-                  </div>
-                  <h3 className="font-display text-2xl font-bold text-white mb-2">Заявка отправлена!</h3>
-                  <p className="text-white/50">Свяжемся с вами в течение 15 минут</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-xs text-white/50 uppercase tracking-wide mb-2 block">Ваше имя</label>
-                    <input
-                      value={contactForm.name}
-                      onChange={(e) => setContactForm((f) => ({ ...f, name: e.target.value }))}
-                      placeholder="Как вас зовут?"
-                      className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 outline-none transition-all"
-                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
-                      onFocus={(e) => (e.target.style.borderColor = "rgba(0,229,255,0.4)")}
-                      onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-white/50 uppercase tracking-wide mb-2 block">Телефон</label>
-                    <input
-                      value={contactForm.phone}
-                      onChange={(e) => setContactForm((f) => ({ ...f, phone: e.target.value }))}
-                      placeholder="+7 (999) 000-00-00"
-                      className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 outline-none transition-all"
-                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
-                      onFocus={(e) => (e.target.style.borderColor = "rgba(0,229,255,0.4)")}
-                      onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-white/50 uppercase tracking-wide mb-2 block">Email</label>
-                    <input
-                      value={contactForm.email}
-                      onChange={(e) => setContactForm((f) => ({ ...f, email: e.target.value }))}
-                      placeholder="your@email.ru"
-                      className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 outline-none transition-all"
-                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
-                      onFocus={(e) => (e.target.style.borderColor = "rgba(0,229,255,0.4)")}
-                      onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
-                    />
-                  </div>
-                  <button
-                    onClick={() => {
-                      if (contactForm.name || contactForm.phone || contactForm.email) setSubmitted(true);
-                    }}
-                    className="btn-neon w-full py-4 rounded-2xl text-base font-bold mt-2 flex items-center justify-center gap-2"
-                  >
-                    <Icon name="Send" size={18} />
-                    Отправить заявку
-                  </button>
-                </div>
-              )}
-
-              <div className="flex flex-wrap gap-6 justify-center mt-8 pt-6 border-t border-white/5">
-                {[
-                  { icon: "Phone", text: "+7 (999) 123-45-67" },
-                  { icon: "Mail", text: "hello@example.ru" },
-                  { icon: "MessageCircle", text: "Telegram" },
-                ].map((c) => (
-                  <div key={c.text} className="flex items-center gap-2 text-sm text-white/50">
-                    <Icon name={c.icon} size={16} style={{ color: "var(--neon-cyan)" }} />
-                    {c.text}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* FOOTER */}
-      <footer className="py-8 border-t border-white/5">
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="font-display text-lg font-bold gradient-text">ЛОГОТИП</div>
-          <p className="text-white/30 text-sm">© 2026 Все права защищены</p>
-          <div className="flex gap-6">
-            {NAV_LINKS.slice(0, 4).map((l) => (
-              <a key={l.href} href={l.href} className="text-white/30 text-xs hover:text-white/60 transition-colors">{l.label}</a>
-            ))}
-          </div>
+      {/* ── FOOTER ── */}
+      <footer className="border-t border-gray-100 bg-white mt-12">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-400">
+          <span>© 2026 AI Calorie Assistant</span>
+          <a href="#" className="hover:text-gray-600 transition-colors">Политика конфиденциальности</a>
         </div>
       </footer>
+
+      {/* ── AI CHAT WIDGET ── */}
+      {/* Toggle button */}
+      <button
+        onClick={() => setChatOpen((v) => !v)}
+        className="fixed bottom-5 right-5 z-50 w-13 h-13 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
+        style={{ width: 52, height: 52 }}
+        aria-label="Открыть AI-чат"
+      >
+        {chatOpen
+          ? <Icon name="X" size={20} className="text-white" />
+          : <Icon name="Bot" size={22} className="text-white" />
+        }
+        {!chatOpen && (
+          <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-400 border-2 border-white" />
+        )}
+      </button>
+
+      {/* Chat panel */}
+      {chatOpen && (
+        <div
+          className="fixed bottom-20 right-5 z-50 w-80 sm:w-96 rounded-2xl bg-white shadow-2xl border border-gray-100 flex flex-col overflow-hidden"
+          style={{ maxHeight: "70vh", animation: "chatSlideUp 0.2s ease" }}
+        >
+          {/* Header */}
+          <div className="px-4 py-3 bg-emerald-500 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+              <Icon name="Bot" size={17} className="text-white" />
+            </div>
+            <div>
+              <div className="text-white font-bold text-sm">AI-диетолог</div>
+              <div className="text-emerald-100 text-xs flex items-center gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-300" />
+                Онлайн
+              </div>
+            </div>
+            <button onClick={() => setChatOpen(false)} className="ml-auto text-white/70 hover:text-white transition-colors">
+              <Icon name="Minimize2" size={16} />
+            </button>
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50" style={{ minHeight: 220, maxHeight: 340 }}>
+            {messages.map((m, i) => (
+              <div key={i} className={`flex gap-2 ${m.role === "user" ? "flex-row-reverse" : ""}`}>
+                {m.role === "ai" && (
+                  <div className="w-7 h-7 rounded-full bg-emerald-500 flex-shrink-0 flex items-center justify-center">
+                    <Icon name="Bot" size={13} className="text-white" />
+                  </div>
+                )}
+                <div
+                  className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${m.role === "ai"
+                    ? "bg-white text-gray-700 rounded-tl-sm shadow-sm border border-gray-100"
+                    : "bg-emerald-500 text-white rounded-tr-sm"}`}
+                >
+                  {m.text}
+                  <div className={`text-xs mt-1 ${m.role === "ai" ? "text-gray-300" : "text-white/60"}`}>{m.time}</div>
+                </div>
+              </div>
+            ))}
+            {isTyping && (
+              <div className="flex gap-2">
+                <div className="w-7 h-7 rounded-full bg-emerald-500 flex-shrink-0 flex items-center justify-center">
+                  <Icon name="Bot" size={13} className="text-white" />
+                </div>
+                <div className="bg-white rounded-2xl rounded-tl-sm px-3 py-2.5 shadow-sm border border-gray-100 flex items-center gap-1">
+                  {[0, 1, 2].map((j) => (
+                    <div key={j} className="w-1.5 h-1.5 rounded-full bg-gray-400"
+                      style={{ animation: `chatDot 1.2s ease-in-out ${j * 0.2}s infinite` }} />
+                  ))}
+                </div>
+              </div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
+
+          {/* Quick hints */}
+          <div className="px-3 pt-2 pb-1 bg-gray-50 flex flex-wrap gap-1.5 border-t border-gray-100">
+            {["Норма белка?", "Как худеть?", "Сколько воды?", "Что есть утром?"].map((h) => (
+              <button key={h} onClick={() => setChatInput(h)}
+                className="text-xs px-2.5 py-1 rounded-full border border-gray-200 text-gray-500 hover:border-emerald-400 hover:text-emerald-600 transition-all bg-white">
+                {h}
+              </button>
+            ))}
+          </div>
+
+          {/* Input */}
+          <div className="p-3 bg-white border-t border-gray-100 flex gap-2">
+            <input
+              ref={chatInputRef}
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && sendMsg()}
+              placeholder="Задай вопрос о питании..."
+              className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all text-gray-800 placeholder-gray-300"
+            />
+            <button
+              onClick={sendMsg}
+              disabled={!chatInput.trim() || isTyping}
+              className="w-9 h-9 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 flex items-center justify-center transition-all flex-shrink-0"
+            >
+              <Icon name="Send" size={14} className="text-white" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
