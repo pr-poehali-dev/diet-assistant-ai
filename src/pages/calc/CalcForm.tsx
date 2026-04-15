@@ -48,6 +48,42 @@ function NumInput({ label, value, onChange, placeholder, unit }: {
   );
 }
 
+// ─── CheckboxGroup ────────────────────────────────────────────────────────────
+function CheckboxGroup({ label, hint, options, value, onChange }: {
+  label: string;
+  hint?: string;
+  options: { v: string; label: string; sub?: string }[];
+  value: string[];
+  onChange: (v: string[]) => void;
+}) {
+  function toggle(v: string) {
+    onChange(value.includes(v) ? value.filter((x) => x !== v) : [...value, v]);
+  }
+  return (
+    <div>
+      <div className="flex items-baseline gap-2 mb-2">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{label}</p>
+        {hint && <span className="text-xs text-gray-400">{hint}</span>}
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {options.map((o) => {
+          const checked = value.includes(o.v);
+          return (
+            <label key={o.v} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer border transition-all duration-150 ${checked ? "border-amber-400 bg-amber-50" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
+              <div className={`w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all ${checked ? "border-amber-500 bg-amber-500" : "border-gray-300"}`}>
+                {checked && <Icon name="Check" size={10} className="text-white" />}
+              </div>
+              <input type="checkbox" className="hidden" checked={checked} onChange={() => toggle(o.v)} />
+              <span className="text-sm font-medium text-gray-700">{o.label}</span>
+              {o.sub && <span className="text-xs text-gray-400 ml-auto">{o.sub}</span>}
+            </label>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── CalcForm ─────────────────────────────────────────────────────────────────
 interface CalcFormProps {
   inp: CalcInput;
@@ -84,6 +120,32 @@ export default function CalcForm({ inp, setInp, calcError, onCalc }: CalcFormPro
         <NumInput label="Рост" value={inp.height} onChange={(v) => setInp((p) => ({ ...p, height: v }))} placeholder="170" unit="см" />
       </div>
 
+      {/* Body fat */}
+      <div>
+        <div className="flex items-baseline gap-2 mb-2">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Процент жира</p>
+          <span className="text-xs text-gray-400">необязательно — уточняет BMR</span>
+        </div>
+        <div className="relative">
+          <input
+            type="number"
+            value={inp.bodyFat}
+            onChange={(e) => setInp((p) => ({ ...p, bodyFat: e.target.value }))}
+            placeholder="20"
+            min={1}
+            max={60}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 pr-9 text-sm text-gray-800 placeholder-gray-300 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all"
+          />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
+        </div>
+        {inp.bodyFat && parseFloat(inp.bodyFat) > 0 && (
+          <p className="mt-1.5 text-xs text-emerald-600 flex items-center gap-1">
+            <Icon name="Info" size={12} />
+            Используется формула Кэтча–МакАрдла по сухой массе тела
+          </p>
+        )}
+      </div>
+
       {/* Activity */}
       <RadioGroup
         label="Активность"
@@ -109,6 +171,32 @@ export default function CalcForm({ inp, setInp, calcError, onCalc }: CalcFormPro
           { v: "maintain", label: "Поддержание веса", sub: "±0 ккал" },
           { v: "gain", label: "Набор мышечной массы", sub: "+250 ккал" },
           { v: "fastgain", label: "Быстрый набор", sub: "+500 ккал" },
+        ]}
+      />
+
+      {/* Chronic conditions */}
+      <CheckboxGroup
+        label="Хронические заболевания"
+        hint="влияют на расчёт"
+        value={inp.conditions}
+        onChange={(v) => setInp((p) => ({ ...p, conditions: v }))}
+        options={[
+          { v: "diabetes", label: "Сахарный диабет", sub: "меньше углеводов" },
+          { v: "hypothyroidism", label: "Гипотиреоз", sub: "−10% TDEE" },
+          { v: "pcos", label: "СПКЯ", sub: "−5% TDEE, больше белка" },
+        ]}
+      />
+
+      {/* Medications */}
+      <CheckboxGroup
+        label="Приём препаратов"
+        hint="корректируют цель"
+        value={inp.medications}
+        onChange={(v) => setInp((p) => ({ ...p, medications: v }))}
+        options={[
+          { v: "metformin", label: "Метформин", sub: "больше белка" },
+          { v: "corticosteroids", label: "Кортикостероиды", sub: "−150 ккал" },
+          { v: "antidepressants", label: "Антидепрессанты", sub: "−100 ккал" },
         ]}
       />
 

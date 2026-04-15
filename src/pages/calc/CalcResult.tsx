@@ -90,6 +90,17 @@ export default function CalcResult({ result, onOpenChat, onGoToDashboard }: Calc
             </div>
           </div>
 
+          {/* Adjustment notes */}
+          {result.adjustmentNote && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex gap-2.5">
+              <Icon name="Info" size={15} className="text-amber-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-amber-700 mb-1">Персональные корректировки</p>
+                <p className="text-xs text-amber-600 leading-relaxed">{result.adjustmentNote}</p>
+              </div>
+            </div>
+          )}
+
           {/* Action buttons */}
           <div className="flex flex-col gap-2">
             <button

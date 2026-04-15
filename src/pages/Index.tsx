@@ -19,6 +19,7 @@ const Index = () => {
   }, [searchParams]);
   const [inp, setInp] = useState<CalcInput>({
     age: "", weight: "", height: "", gender: "female", activity: "moderate", goal: "maintain",
+    bodyFat: "", conditions: [], medications: [],
   });
   const [result, setResult] = useState<CalcResult | null>(null);
   const [calcError, setCalcError] = useState("");
