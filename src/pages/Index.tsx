@@ -5,7 +5,6 @@ import Dashboard, { UserProfile } from "./Dashboard";
 import { CalcInput, CalcResult, calcCalories } from "./calc/calcTypes";
 import CalcForm from "./calc/CalcForm";
 import CalcResultPanel from "./calc/CalcResult";
-import AiChat from "./calc/AiChat";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -24,7 +23,6 @@ const Index = () => {
   const [result, setResult] = useState<CalcResult | null>(null);
   const [calcError, setCalcError] = useState("");
   const [dashboardProfile, setDashboardProfile] = useState<Partial<UserProfile> | undefined>(undefined);
-  const [chatOpen, setChatOpen] = useState(false);
   const [autoAnalyze, setAutoAnalyze] = useState(false);
 
   function handleCalc() {
@@ -38,7 +36,6 @@ const Index = () => {
       fatTarget: r.fat,
       carbsTarget: r.carbs,
     });
-    setChatOpen(true);
     setAutoAnalyze(true);
   }
 
@@ -105,8 +102,10 @@ const Index = () => {
             {/* RIGHT — Result */}
             <CalcResultPanel
               result={result}
-              onOpenChat={() => setChatOpen(true)}
+              inp={inp}
               onGoToDashboard={() => setPage("dashboard")}
+              autoAnalyze={autoAnalyze}
+              onAutoAnalyzeDone={() => setAutoAnalyze(false)}
             />
           </div>
 
@@ -142,15 +141,7 @@ const Index = () => {
         </div>
       </footer>
 
-      {/* ── AI CHAT WIDGET ── */}
-      <AiChat
-        isOpen={chatOpen}
-        onToggle={() => setChatOpen((v) => !v)}
-        inp={inp}
-        result={result}
-        autoAnalyze={autoAnalyze}
-        onAutoAnalyzeDone={() => setAutoAnalyze(false)}
-      />
+
     </div>
   );
 };
