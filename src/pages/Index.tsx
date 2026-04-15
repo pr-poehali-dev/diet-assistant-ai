@@ -51,7 +51,7 @@ const Index = () => {
             </div>
             <div>
               <div className="font-bold text-gray-800 text-sm leading-none">AI Calorie Assistant</div>
-              <div className="text-xs text-emerald-500 font-medium">Еда с умом</div>
+              <div className="text-xs text-emerald-100 font-medium px-0">Еда с умом</div>
             </div>
           </button>
 
