@@ -162,9 +162,13 @@ export default function Landing() {
             </button>
             <button
               onClick={() => navigate("/app?tab=dashboard")}
-              className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl border-2 border-gray-200 text-gray-600 font-semibold text-base hover:border-emerald-300 hover:text-emerald-600 transition-all">
-              <Icon name="BookOpen" size={17} />
-              Вести дневник
+              className="group relative flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl border-2 border-emerald-200 bg-white text-emerald-600 font-semibold text-base overflow-hidden transition-all duration-300 hover:border-emerald-400 hover:shadow-lg hover:shadow-emerald-100 hover:-translate-y-0.5 active:translate-y-0 active:scale-95">
+              <span className="absolute inset-0 bg-gradient-to-r from-emerald-50 to-teal-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <Icon name="BookOpen" size={17} className="relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" />
+              <span className="relative z-10">Вести дневник</span>
+              <span className="relative z-10 opacity-0 -ml-1 group-hover:opacity-100 group-hover:ml-0 transition-all duration-300">
+                <Icon name="ArrowRight" size={15} />
+              </span>
             </button>
           </div>
           <p className="mt-4 text-xs text-gray-400 flex items-center gap-1.5 justify-center lg:justify-start">
