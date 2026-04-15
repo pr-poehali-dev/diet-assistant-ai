@@ -7,9 +7,11 @@ interface AiChatProps {
   onToggle: () => void;
   inp: CalcInput;
   result: CalcResult | null;
+  autoAnalyze?: boolean;
+  onAutoAnalyzeDone?: () => void;
 }
 
-export default function AiChat({ isOpen, onToggle, inp, result }: AiChatProps) {
+export default function AiChat({ isOpen, onToggle, inp, result, autoAnalyze, onAutoAnalyzeDone }: AiChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     { role: "ai", text: "Привет! Я AI-диетолог. Задай любой вопрос о питании, калориях или тренировках.", time: getTime() },
   ]);
@@ -17,6 +19,7 @@ export default function AiChat({ isOpen, onToggle, inp, result }: AiChatProps) {
   const [isTyping, setIsTyping] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<HTMLInputElement>(null);
+  const autoAnalyzedRef = useRef(false);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -26,19 +29,33 @@ export default function AiChat({ isOpen, onToggle, inp, result }: AiChatProps) {
     if (isOpen) setTimeout(() => chatInputRef.current?.focus(), 100);
   }, [isOpen]);
 
-  async function sendMsg(overrideText?: string) {
+  useEffect(() => {
+    if (autoAnalyze && result && !autoAnalyzedRef.current) {
+      autoAnalyzedRef.current = true;
+      const prompt = `Расчёт готов. Проанализируй мои параметры и дай конкретные рекомендации по питанию, режиму дня и продуктам, которые помогут достичь моей цели.`;
+      sendMsg(prompt, true);
+      onAutoAnalyzeDone?.();
+    }
+  }, [autoAnalyze, result]);
+
+  async function sendMsg(overrideText?: string, silent?: boolean) {
     const text = (overrideText ?? chatInput).trim();
     if (!text || isTyping) return;
     const newMsg: ChatMessage = { role: "user", text, time: getTime() };
-    const updatedMessages = [...messages, newMsg];
-    setMessages(updatedMessages);
+    const updatedMessages = silent
+      ? [...messages, newMsg]
+      : [...messages, newMsg];
+    if (!silent) setMessages(updatedMessages);
+    else setMessages(updatedMessages);
     setChatInput("");
     setIsTyping(true);
 
     const userContext = result ? {
       gender: inp.gender, age: inp.age, weight: inp.weight, height: inp.height,
       goal: inp.goal, target: result.target, protein: result.protein,
-      fat: result.fat, carbs: result.carbs,
+      fat: result.fat, carbs: result.carbs, bmr: result.bmr, tdee: result.tdee,
+      conditions: inp.conditions, medications: inp.medications,
+      bodyFat: inp.bodyFat, adjustmentNote: result.adjustmentNote,
     } : {};
 
     try {

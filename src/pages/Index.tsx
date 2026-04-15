@@ -25,6 +25,7 @@ const Index = () => {
   const [calcError, setCalcError] = useState("");
   const [dashboardProfile, setDashboardProfile] = useState<Partial<UserProfile> | undefined>(undefined);
   const [chatOpen, setChatOpen] = useState(false);
+  const [autoAnalyze, setAutoAnalyze] = useState(false);
 
   function handleCalc() {
     const r = calcCalories(inp);
@@ -37,6 +38,8 @@ const Index = () => {
       fatTarget: r.fat,
       carbsTarget: r.carbs,
     });
+    setChatOpen(true);
+    setAutoAnalyze(true);
   }
 
   return (
@@ -145,6 +148,8 @@ const Index = () => {
         onToggle={() => setChatOpen((v) => !v)}
         inp={inp}
         result={result}
+        autoAnalyze={autoAnalyze}
+        onAutoAnalyzeDone={() => setAutoAnalyze(false)}
       />
     </div>
   );
