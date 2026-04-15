@@ -35,6 +35,17 @@ const Index = () => {
       proteinTarget: r.protein,
       fatTarget: r.fat,
       carbsTarget: r.carbs,
+      gender: inp.gender,
+      age: inp.age,
+      weight: inp.weight,
+      height: inp.height,
+      activity: inp.activity,
+      goal: inp.goal,
+      bodyFat: inp.bodyFat,
+      conditions: inp.conditions,
+      medications: inp.medications,
+      bmr: r.bmr,
+      tdee: r.tdee,
     });
     setAutoAnalyze(true);
   }

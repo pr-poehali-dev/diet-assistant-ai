@@ -5,9 +5,11 @@ import {
   loadProfile, saveProfile, loadLog, saveLog,
   todayKey,
 } from "./dashboard/dashboardTypes";
+import TodayTab from "./dashboard/TodayTab";
 import DiaryTab from "./dashboard/DiaryTab";
 import HistoryTab from "./dashboard/HistoryTab";
 import AnalysisTab from "./dashboard/AnalysisTab";
+import ParamsTab from "./dashboard/ParamsTab";
 
 export type { UserProfile, FoodLog };
 
@@ -16,7 +18,7 @@ interface DashboardProps {
 }
 
 const Dashboard = ({ externalProfile }: DashboardProps) => {
-  const [tab, setTab] = useState<"diary" | "history" | "analysis">("diary");
+  const [tab, setTab] = useState<"today" | "diary" | "history" | "analysis" | "params">("today");
   const [profile, setProfile] = useState<UserProfile>(() => {
     const saved = loadProfile();
     return {
@@ -25,6 +27,17 @@ const Dashboard = ({ externalProfile }: DashboardProps) => {
       proteinTarget: saved.proteinTarget || 0,
       fatTarget: saved.fatTarget || 0,
       carbsTarget: saved.carbsTarget || 0,
+      gender: saved.gender,
+      age: saved.age,
+      weight: saved.weight,
+      height: saved.height,
+      activity: saved.activity,
+      goal: saved.goal,
+      bodyFat: saved.bodyFat,
+      conditions: saved.conditions,
+      medications: saved.medications,
+      bmr: saved.bmr,
+      tdee: saved.tdee,
     };
   });
   const [log, setLog] = useState<FoodLog>(loadLog);
@@ -32,7 +45,6 @@ const Dashboard = ({ externalProfile }: DashboardProps) => {
   const [nameInput, setNameInput] = useState(profile.name);
   const [histDate, setHistDate] = useState(todayKey);
 
-  // Merge external profile (from calculator result)
   useEffect(() => {
     if (!externalProfile) return;
     setProfile((prev) => {
@@ -42,7 +54,6 @@ const Dashboard = ({ externalProfile }: DashboardProps) => {
     });
   }, [externalProfile]);
 
-  // Save log whenever it changes
   useEffect(() => { saveLog(log); }, [log]);
 
   function saveName() {
@@ -57,6 +68,14 @@ const Dashboard = ({ externalProfile }: DashboardProps) => {
   function deleteEntry(date: string, id: number) {
     setLog((prev) => ({ ...prev, [date]: (prev[date] || []).filter((e) => e.id !== id) }));
   }
+
+  const tabs = [
+    { id: "today", label: "Сегодня", icon: "Sun" },
+    { id: "diary", label: "Дневник", icon: "BookOpen" },
+    { id: "history", label: "История", icon: "CalendarDays" },
+    { id: "analysis", label: "AI-анализ", icon: "Sparkles" },
+    { id: "params", label: "Параметры", icon: "User" },
+  ] as const;
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
@@ -79,7 +98,6 @@ const Dashboard = ({ externalProfile }: DashboardProps) => {
           </div>
         </div>
 
-        {/* Name edit */}
         {editingName ? (
           <div className="flex items-center gap-2">
             <input
@@ -103,21 +121,21 @@ const Dashboard = ({ externalProfile }: DashboardProps) => {
       </div>
 
       {/* ── Tabs ── */}
-      <div className="flex gap-1 mb-6 bg-gray-100 rounded-xl p-1">
-        {(["diary", "history", "analysis"] as const).map((t) => {
-          const labels = { diary: "Дневник", history: "История", analysis: "AI-анализ" };
-          const icons = { diary: "BookOpen", history: "CalendarDays", analysis: "Sparkles" };
-          return (
-            <button key={t} onClick={() => setTab(t)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-all duration-150 ${tab === t ? "bg-white text-emerald-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
-              <Icon name={icons[t] as Parameters<typeof Icon>[0]["name"]} size={14} />
-              {labels[t]}
-            </button>
-          );
-        })}
+      <div className="flex gap-1 mb-6 bg-gray-100 rounded-xl p-1 overflow-x-auto">
+        {tabs.map((t) => (
+          <button key={t.id} onClick={() => setTab(t.id)}
+            className={`flex-shrink-0 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-150 ${tab === t.id ? "bg-white text-emerald-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+            <Icon name={t.icon as Parameters<typeof Icon>[0]["name"]} size={14} />
+            <span>{t.label}</span>
+          </button>
+        ))}
       </div>
 
       {/* ── Tab content ── */}
+      {tab === "today" && (
+        <TodayTab log={log} profile={profile} setLog={setLog} />
+      )}
+
       {tab === "diary" && (
         <DiaryTab log={log} profile={profile} setLog={setLog} />
       )}
@@ -134,6 +152,10 @@ const Dashboard = ({ externalProfile }: DashboardProps) => {
 
       {tab === "analysis" && (
         <AnalysisTab log={log} profile={profile} />
+      )}
+
+      {tab === "params" && (
+        <ParamsTab profile={profile} setProfile={setProfile} />
       )}
     </div>
   );

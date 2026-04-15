@@ -4,6 +4,18 @@ export interface UserProfile {
   proteinTarget: number;
   fatTarget: number;
   carbsTarget: number;
+  // Параметры из калькулятора
+  gender?: string;
+  age?: string;
+  weight?: string;
+  height?: string;
+  activity?: string;
+  goal?: string;
+  bodyFat?: string;
+  conditions?: string[];
+  medications?: string[];
+  bmr?: number;
+  tdee?: number;
 }
 
 export interface FoodEntry {
@@ -80,4 +92,75 @@ export function sumEntries(entries: FoodEntry[]) {
     }),
     { calories: 0, protein: 0, fat: 0, carbs: 0 }
   );
+}
+
+// ─── Умная коррекция нормы ────────────────────────────────────────────────────
+export interface DayCorrection {
+  adjustedCalories: number;
+  adjustedProtein: number;
+  calorieDelta: number;
+  proteinBoost: boolean;
+  message: string;
+}
+
+export function calcDayCorrection(log: FoodLog, profile: UserProfile): DayCorrection {
+  const base = profile.dailyCalories || 0;
+  const baseProtein = profile.proteinTarget || 0;
+
+  if (base === 0) {
+    return { adjustedCalories: 0, adjustedProtein: 0, calorieDelta: 0, proteinBoost: false, message: "" };
+  }
+
+  // Собираем данные за последние 3 дня (не включая сегодня)
+  const prevDays: { calories: number; protein: number }[] = [];
+  for (let i = 1; i <= 3; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const entries = log[dateKey(d)] || [];
+    if (entries.length > 0) {
+      const s = sumEntries(entries);
+      prevDays.push({ calories: s.calories, protein: s.protein });
+    }
+  }
+
+  if (prevDays.length === 0) {
+    return { adjustedCalories: base, adjustedProtein: baseProtein, calorieDelta: 0, proteinBoost: false, message: "" };
+  }
+
+  const avgCalories = prevDays.reduce((s, d) => s + d.calories, 0) / prevDays.length;
+  const avgDeficit = base - avgCalories; // положительный = недобор, отрицательный = перебор
+
+  let calorieDelta = 0;
+  let message = "";
+
+  if (avgDeficit > 300) {
+    // Систематический недобор
+    calorieDelta = +150;
+    const kcalShort = Math.round(avgDeficit);
+    message = `За последние ${prevDays.length} дн. вы недоедаете ~${kcalShort} ккал. Сегодня можно добавить +150 ккал без вреда для цели.`;
+  } else if (avgDeficit < -400) {
+    // Систематический перебор
+    calorieDelta = -200;
+    const kcalOver = Math.round(-avgDeficit);
+    message = `За последние ${prevDays.length} дн. вы перебирали ~${kcalOver} ккал. Рекомендуем лёгкий день: −200 ккал для компенсации.`;
+  } else if (Math.abs(avgDeficit) <= 200) {
+    message = "Всё идёт по плану! Продолжай в том же духе.";
+  }
+
+  // Коррекция белка: если 2+ дня подряд недобор белка > 20%
+  let proteinBoost = false;
+  const daysLowProtein = prevDays.filter(d => baseProtein > 0 && d.protein < baseProtein * 0.8).length;
+  if (daysLowProtein >= 2) {
+    proteinBoost = true;
+    if (message) message += " Также: вы систематически недобираете белок — сегодня цель по белку увеличена на 15%.";
+    else message = "Вы систематически недобираете белок. Сегодня цель по белку увеличена на 15%.";
+  }
+
+  return {
+    adjustedCalories: Math.max(1200, base + calorieDelta),
+    adjustedProtein: proteinBoost ? Math.round(baseProtein * 1.15) : baseProtein,
+    calorieDelta,
+    proteinBoost,
+    message,
+  };
 }
