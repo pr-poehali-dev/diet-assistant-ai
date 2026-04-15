@@ -130,6 +130,7 @@ export default function Landing() {
               <div className="text-xs text-emerald-500 font-medium">Еда с умом</div>
             </div>
           </div>
+
           <button
             onClick={goToCalc}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold shadow-sm transition-all hover:shadow-md active:scale-95">

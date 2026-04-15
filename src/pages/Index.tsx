@@ -45,13 +45,13 @@ const Index = () => {
       {/* ── HEADER ── */}
       <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
-          <button onClick={() => navigate("/")} className="flex items-center gap-2 flex-shrink-0 hover:opacity-80 transition-opacity">
-            <div className="w-7 h-7 rounded-lg bg-emerald-500 flex items-center justify-center">
-              <Icon name="Flame" size={15} className="text-white" />
+          <button onClick={() => navigate("/")} className="flex items-center gap-2.5 flex-shrink-0 hover:opacity-80 transition-opacity">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500 flex items-center justify-center shadow-sm">
+              <Icon name="Flame" size={16} className="text-white" />
             </div>
             <div>
-              <div className="font-bold text-gray-800 text-sm leading-none">AI Calorie Assistant</div>
-              <div className="text-xs text-emerald-500 font-medium px-0">Еда с умом</div>
+              <div className="font-bold text-gray-900 text-sm leading-none">AI Calorie Assistant</div>
+              <div className="text-xs text-emerald-500 font-medium">Еда с умом</div>
             </div>
           </button>
 
