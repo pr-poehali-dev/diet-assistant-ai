@@ -161,7 +161,7 @@ export default function Landing() {
               Рассчитать норму калорий
             </button>
             <button
-              onClick={goToCalc}
+              onClick={() => navigate("/app?tab=dashboard")}
               className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl border-2 border-gray-200 text-gray-600 font-semibold text-base hover:border-emerald-300 hover:text-emerald-600 transition-all">
               <Icon name="BookOpen" size={17} />
               Вести дневник

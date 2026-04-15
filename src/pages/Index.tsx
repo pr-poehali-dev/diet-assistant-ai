@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Icon from "@/components/ui/icon";
 import Dashboard, { UserProfile } from "./Dashboard";
 import { CalcInput, CalcResult, calcCalories } from "./calc/calcTypes";
@@ -9,7 +9,14 @@ import AiChat from "./calc/AiChat";
 
 const Index = () => {
   const navigate = useNavigate();
-  const [page, setPage] = useState<"calc" | "dashboard">("calc");
+  const [searchParams] = useSearchParams();
+  const [page, setPage] = useState<"calc" | "dashboard">(
+    searchParams.get("tab") === "dashboard" ? "dashboard" : "calc"
+  );
+
+  useEffect(() => {
+    if (searchParams.get("tab") === "dashboard") setPage("dashboard");
+  }, [searchParams]);
   const [inp, setInp] = useState<CalcInput>({
     age: "", weight: "", height: "", gender: "female", activity: "moderate", goal: "maintain",
   });
