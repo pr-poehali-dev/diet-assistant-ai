@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import {
-  UserProfile, FoodLog,
-  loadProfile, saveProfile, loadLog, saveLog,
+  UserProfile, FoodLog, FoodEntry,
   todayKey,
 } from "./dashboard/dashboardTypes";
 import TodayTab from "./dashboard/TodayTab";
@@ -10,63 +9,67 @@ import DiaryTab from "./dashboard/DiaryTab";
 import HistoryTab from "./dashboard/HistoryTab";
 import AnalysisTab from "./dashboard/AnalysisTab";
 import ParamsTab from "./dashboard/ParamsTab";
+import { apiGetProfile, apiSaveProfile, apiGetFoodLog, apiSaveFoodLogDay } from "@/lib/api";
+import type { AuthUser } from "@/hooks/useAuth";
 
 export type { UserProfile, FoodLog };
 
 interface DashboardProps {
+  user: AuthUser;
+  onLogout: () => void;
   externalProfile?: Partial<UserProfile>;
 }
 
-const Dashboard = ({ externalProfile }: DashboardProps) => {
+const Dashboard = ({ user, onLogout, externalProfile }: DashboardProps) => {
   const [tab, setTab] = useState<"today" | "diary" | "history" | "analysis" | "params">("today");
-  const [profile, setProfile] = useState<UserProfile>(() => {
-    const saved = loadProfile();
-    return {
-      name: saved.name || "",
-      dailyCalories: saved.dailyCalories || 0,
-      proteinTarget: saved.proteinTarget || 0,
-      fatTarget: saved.fatTarget || 0,
-      carbsTarget: saved.carbsTarget || 0,
-      gender: saved.gender,
-      age: saved.age,
-      weight: saved.weight,
-      height: saved.height,
-      activity: saved.activity,
-      goal: saved.goal,
-      bodyFat: saved.bodyFat,
-      conditions: saved.conditions,
-      medications: saved.medications,
-      bmr: saved.bmr,
-      tdee: saved.tdee,
-    };
+  const [profile, setProfile] = useState<UserProfile>({
+    name: user.name || "",
+    dailyCalories: 0, proteinTarget: 0, fatTarget: 0, carbsTarget: 0,
   });
-  const [log, setLog] = useState<FoodLog>(loadLog);
-  const [editingName, setEditingName] = useState(false);
-  const [nameInput, setNameInput] = useState(profile.name);
+  const [log, setLog] = useState<FoodLog>({});
+  const [loadingProfile, setLoadingProfile] = useState(true);
   const [histDate, setHistDate] = useState(todayKey);
 
   useEffect(() => {
-    if (!externalProfile) return;
+    Promise.all([apiGetProfile(), apiGetFoodLog(30)]).then(([prof, foodLog]) => {
+      if (prof) setProfile({ ...prof, name: prof.name || user.name || "" });
+      if (foodLog) setLog(foodLog);
+      setLoadingProfile(false);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!externalProfile || loadingProfile) return;
     setProfile((prev) => {
       const next = { ...prev, ...externalProfile };
-      saveProfile(next);
+      apiSaveProfile(next);
       return next;
     });
-  }, [externalProfile]);
+  }, [externalProfile, loadingProfile]);
 
-  useEffect(() => { saveLog(log); }, [log]);
+  function handleSetLog(updater: React.SetStateAction<FoodLog>) {
+    setLog((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      const changedDay = Object.keys(next).find((k) => JSON.stringify(next[k]) !== JSON.stringify(prev[k]));
+      if (changedDay) apiSaveFoodLogDay(changedDay, next[changedDay] || []);
+      return next;
+    });
+  }
 
-  function saveName() {
+  function handleSetProfile(updater: React.SetStateAction<UserProfile>) {
     setProfile((prev) => {
-      const next = { ...prev, name: nameInput.trim() };
-      saveProfile(next);
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      apiSaveProfile(next);
       return next;
     });
-    setEditingName(false);
   }
 
   function deleteEntry(date: string, id: number) {
-    setLog((prev) => ({ ...prev, [date]: (prev[date] || []).filter((e) => e.id !== id) }));
+    setLog((prev) => {
+      const updated = { ...prev, [date]: (prev[date] || []).filter((e: FoodEntry) => e.id !== id) };
+      apiSaveFoodLogDay(date, updated[date]);
+      return updated;
+    });
   }
 
   const tabs = [
@@ -77,10 +80,19 @@ const Dashboard = ({ externalProfile }: DashboardProps) => {
     { id: "params", label: "Параметры", icon: "User" },
   ] as const;
 
+  if (loadingProfile) {
+    return (
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-16 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Icon name="Loader2" size={28} className="text-emerald-500 animate-spin" />
+          <p className="text-gray-400 text-sm">Загружаю твои данные...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
-
-      {/* ── Top bar ── */}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
@@ -88,7 +100,7 @@ const Dashboard = ({ externalProfile }: DashboardProps) => {
           </div>
           <div>
             <div className="font-bold text-gray-800 text-base">
-              {profile.name ? `Привет, ${profile.name}!` : "Мой дневник питания"}
+              {profile.name ? `Привет, ${profile.name}!` : `Привет, ${user.email}!`}
             </div>
             <div className="text-xs text-gray-400">
               {profile.dailyCalories > 0
@@ -97,30 +109,13 @@ const Dashboard = ({ externalProfile }: DashboardProps) => {
             </div>
           </div>
         </div>
-
-        {editingName ? (
-          <div className="flex items-center gap-2">
-            <input
-              value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && saveName()}
-              placeholder="Твоё имя"
-              className="border border-gray-200 rounded-xl px-3 py-1.5 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-              autoFocus
-            />
-            <button onClick={saveName} className="text-xs px-3 py-1.5 rounded-xl bg-emerald-500 text-white font-semibold">Сохранить</button>
-            <button onClick={() => setEditingName(false)} className="text-xs text-gray-400 hover:text-gray-600">Отмена</button>
-          </div>
-        ) : (
-          <button onClick={() => { setNameInput(profile.name); setEditingName(true); }}
-            className="text-xs text-gray-400 hover:text-emerald-600 flex items-center gap-1 transition-colors">
-            <Icon name="Pencil" size={12} />
-            {profile.name ? "Сменить имя" : "Добавить имя"}
-          </button>
-        )}
+        <button onClick={onLogout}
+          className="text-xs text-gray-400 hover:text-red-500 flex items-center gap-1.5 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-50">
+          <Icon name="LogOut" size={13} />
+          Выйти
+        </button>
       </div>
 
-      {/* ── Tabs ── */}
       <div className="flex gap-1 mb-6 bg-gray-100 rounded-xl p-1 overflow-x-auto">
         {tabs.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
@@ -131,32 +126,11 @@ const Dashboard = ({ externalProfile }: DashboardProps) => {
         ))}
       </div>
 
-      {/* ── Tab content ── */}
-      {tab === "today" && (
-        <TodayTab log={log} profile={profile} setLog={setLog} />
-      )}
-
-      {tab === "diary" && (
-        <DiaryTab log={log} profile={profile} setLog={setLog} />
-      )}
-
-      {tab === "history" && (
-        <HistoryTab
-          log={log}
-          profile={profile}
-          histDate={histDate}
-          setHistDate={setHistDate}
-          deleteEntry={deleteEntry}
-        />
-      )}
-
-      {tab === "analysis" && (
-        <AnalysisTab log={log} profile={profile} />
-      )}
-
-      {tab === "params" && (
-        <ParamsTab profile={profile} setProfile={setProfile} />
-      )}
+      {tab === "today" && <TodayTab log={log} profile={profile} setLog={handleSetLog} />}
+      {tab === "diary" && <DiaryTab log={log} profile={profile} setLog={handleSetLog} />}
+      {tab === "history" && <HistoryTab log={log} profile={profile} histDate={histDate} setHistDate={setHistDate} deleteEntry={deleteEntry} />}
+      {tab === "analysis" && <AnalysisTab log={log} profile={profile} />}
+      {tab === "params" && <ParamsTab profile={profile} setProfile={handleSetProfile} />}
     </div>
   );
 };

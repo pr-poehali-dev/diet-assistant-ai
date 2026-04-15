@@ -1,0 +1,12 @@
+{
+  "tests": [
+    {
+      "name": "GET food-log without token returns 401",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 401,
+      "bodyMatcher": "partial",
+      "expectedBody": {"error": "string"}
+    }
+  ]
+}

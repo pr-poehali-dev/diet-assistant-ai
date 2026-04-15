@@ -1,0 +1,30 @@
+{
+  "tests": [
+    {
+      "name": "GET /me without token returns 401",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 401,
+      "bodyMatcher": "partial",
+      "expectedBody": {"error": "string"}
+    },
+    {
+      "name": "Register new user",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "register", "email": "test_diet@example.com", "password": "test123", "name": "Тест"},
+      "expectedStatus": 200,
+      "bodyMatcher": "partial",
+      "expectedBody": {"token": "string"}
+    },
+    {
+      "name": "Login existing user",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "login", "email": "test_diet@example.com", "password": "test123"},
+      "expectedStatus": 200,
+      "bodyMatcher": "partial",
+      "expectedBody": {"token": "string"}
+    }
+  ]
+}

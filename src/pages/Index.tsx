@@ -5,10 +5,14 @@ import Dashboard, { UserProfile } from "./Dashboard";
 import { CalcInput, CalcResult, calcCalories } from "./calc/calcTypes";
 import CalcForm from "./calc/CalcForm";
 import CalcResultPanel from "./calc/CalcResult";
+import AuthPage from "./AuthPage";
+import { useAuth } from "@/hooks/useAuth";
 
 const Index = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user, loading, login, register, logout } = useAuth();
+
   const [page, setPage] = useState<"calc" | "dashboard">(
     searchParams.get("tab") === "dashboard" ? "dashboard" : "calc"
   );
@@ -16,6 +20,7 @@ const Index = () => {
   useEffect(() => {
     if (searchParams.get("tab") === "dashboard") setPage("dashboard");
   }, [searchParams]);
+
   const [inp, setInp] = useState<CalcInput>({
     age: "", weight: "", height: "", gender: "female", activity: "moderate", goal: "maintain",
     bodyFat: "", conditions: [], medications: [],
@@ -50,6 +55,20 @@ const Index = () => {
     setAutoAnalyze(true);
   }
 
+  // Загрузка
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Icon name="Loader2" size={32} className="text-emerald-500 animate-spin" />
+      </div>
+    );
+  }
+
+  // Не авторизован — показываем форму входа
+  if (!user) {
+    return <AuthPage onLogin={login} onRegister={register} />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
 
@@ -65,7 +84,6 @@ const Index = () => {
             </div>
           </button>
 
-          {/* Nav tabs */}
           <nav className="flex items-center gap-1">
             <button
               onClick={() => setPage("calc")}
@@ -83,75 +101,63 @@ const Index = () => {
         </div>
       </header>
 
-      {/* ── MAIN ── */}
       <main>
+        {page === "dashboard" && (
+          <Dashboard
+            user={user}
+            onLogout={logout}
+            externalProfile={dashboardProfile}
+          />
+        )}
 
-        {/* Dashboard page */}
-        {page === "dashboard" && <Dashboard externalProfile={dashboardProfile} />}
+        {page === "calc" && (
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+            <div className="mb-8 text-center">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Рассчитай свою норму калорий</h1>
+              <p className="text-gray-500 text-sm">Персональный расчёт BMR, TDEE и БЖУ по формуле Миффлина-Сан Жеора</p>
+            </div>
 
-        {/* Calculator page */}
-        {page === "calc" && <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <CalcForm inp={inp} setInp={setInp} calcError={calcError} onCalc={handleCalc} />
+              <CalcResultPanel
+                result={result}
+                inp={inp}
+                onGoToDashboard={() => setPage("dashboard")}
+                autoAnalyze={autoAnalyze}
+                onAutoAnalyzeDone={() => setAutoAnalyze(false)}
+              />
+            </div>
 
-          {/* Title */}
-          <div className="mb-8 text-center">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Рассчитай свою норму калорий</h1>
-            <p className="text-gray-500 text-sm">Персональный расчёт BMR, TDEE и БЖУ по формуле Миффлина-Сан Жеора</p>
-          </div>
-
-          {/* ── Two-column layout ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-            {/* LEFT — Calculator form */}
-            <CalcForm
-              inp={inp}
-              setInp={setInp}
-              calcError={calcError}
-              onCalc={handleCalc}
-            />
-
-            {/* RIGHT — Result */}
-            <CalcResultPanel
-              result={result}
-              inp={inp}
-              onGoToDashboard={() => setPage("dashboard")}
-              autoAnalyze={autoAnalyze}
-              onAutoAnalyzeDone={() => setAutoAnalyze(false)}
-            />
-          </div>
-
-          {/* ── How it works ── */}
-          <div className="mt-8 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h3 className="font-bold text-gray-700 text-sm mb-4 flex items-center gap-2">
-              <Icon name="Info" size={15} className="text-blue-400" />
-              Как это работает?
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs text-gray-500">
-              <div className="flex flex-col gap-1">
-                <span className="font-bold text-gray-700 text-sm">① BMR</span>
-                <p>Базовый обмен — калории, которые организм тратит в полном покое. Считается по формуле Миффлина-Сан Жеора с учётом пола, возраста, веса и роста.</p>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="font-bold text-gray-700 text-sm">② TDEE</span>
-                <p>Суточный расход с учётом активности. BMR умножается на коэффициент от 1.2 (сидячий) до 1.9 (очень активный). Это реальная потребность в калориях.</p>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="font-bold text-gray-700 text-sm">③ Цель + БЖУ</span>
-                <p>К TDEE прибавляется или вычитается коррекция на цель. Белок — 2 г/кг веса, жиры — 25% калорий, остаток — углеводы.</p>
+            <div className="mt-8 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <h3 className="font-bold text-gray-700 text-sm mb-4 flex items-center gap-2">
+                <Icon name="Info" size={15} className="text-blue-400" />
+                Как это работает?
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs text-gray-500">
+                <div className="flex flex-col gap-1">
+                  <span className="font-bold text-gray-700 text-sm">① BMR</span>
+                  <p>Базовый обмен — калории, которые организм тратит в полном покое. Считается по формуле Миффлина-Сан Жеора с учётом пола, возраста, веса и роста.</p>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="font-bold text-gray-700 text-sm">② TDEE</span>
+                  <p>Суточный расход с учётом активности. BMR умножается на коэффициент от 1.2 (сидячий) до 1.9 (очень активный). Это реальная потребность в калориях.</p>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="font-bold text-gray-700 text-sm">③ Цель + БЖУ</span>
+                  <p>К TDEE прибавляется или вычитается коррекция на цель. Белок — 2 г/кг веса, жиры — 25% калорий, остаток — углеводы.</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>}
+        )}
       </main>
 
-      {/* ── FOOTER ── */}
       <footer className="border-t border-gray-100 bg-white mt-12">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-400">
           <span>© 2026 AI Calorie Assistant</span>
           <a href="#" className="hover:text-gray-600 transition-colors">Политика конфиденциальности</a>
         </div>
       </footer>
-
-
     </div>
   );
 };
