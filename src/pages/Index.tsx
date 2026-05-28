@@ -16,6 +16,7 @@ const Index = () => {
   const [page, setPage] = useState<"calc" | "dashboard">(
     searchParams.get("tab") === "dashboard" ? "dashboard" : "calc"
   );
+  const [dashboardTab, setDashboardTab] = useState<"chat" | "diary" | undefined>(undefined);
 
   useEffect(() => {
     if (searchParams.get("tab") === "dashboard") setPage("dashboard");
@@ -107,6 +108,7 @@ const Index = () => {
             user={user}
             onLogout={logout}
             externalProfile={dashboardProfile}
+            initialTab={dashboardTab}
           />
         )}
 
@@ -122,7 +124,7 @@ const Index = () => {
               <CalcResultPanel
                 result={result}
                 inp={inp}
-                onGoToDashboard={() => setPage("dashboard")}
+                onGoToDashboard={(tab) => { setDashboardTab(tab); setPage("dashboard"); }}
                 autoAnalyze={autoAnalyze}
                 onAutoAnalyzeDone={() => setAutoAnalyze(false)}
               />

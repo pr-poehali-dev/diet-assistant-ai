@@ -19,10 +19,11 @@ interface DashboardProps {
   user: AuthUser;
   onLogout: () => void;
   externalProfile?: Partial<UserProfile>;
+  initialTab?: "chat" | "diary";
 }
 
-const Dashboard = ({ user, onLogout, externalProfile }: DashboardProps) => {
-  const [tab, setTab] = useState<"today" | "diary" | "history" | "analysis" | "chat" | "params">("today");
+const Dashboard = ({ user, onLogout, externalProfile, initialTab }: DashboardProps) => {
+  const [tab, setTab] = useState<"today" | "diary" | "history" | "analysis" | "chat" | "params">(initialTab ?? "today");
   const [profile, setProfile] = useState<UserProfile>({
     name: user?.name || "",
     dailyCalories: 0, proteinTarget: 0, fatTarget: 0, carbsTarget: 0,
