@@ -200,6 +200,15 @@ export default function CalcForm({ inp, setInp, calcError, onCalc }: CalcFormPro
         ]}
       />
 
+      {(inp.conditions.length > 0 || inp.medications.length > 0) && (
+        <div className="flex gap-2 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
+          <Icon name="AlertCircle" size={14} className="text-amber-500 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-700 leading-relaxed">
+            Расчёт носит ознакомительный характер и не является медицинской рекомендацией. Перед изменением рациона при наличии заболеваний или приёме препаратов проконсультируйтесь с врачом.
+          </p>
+        </div>
+      )}
+
       {calcError && (
         <p className="text-red-500 text-xs flex items-center gap-1">
           <Icon name="AlertCircle" size={13} /> {calcError}
