@@ -103,7 +103,7 @@ def handler(event: dict, context) -> dict:
     req = urllib.request.Request(
         "https://api.aitunnel.ru/v1/chat/completions",
         data=payload,
-        headers={"Authorization": f"Bearer {aitunnel_key}", "Content-Type": "application/json"},
+        headers={"Authorization": f"Bearer {aitunnel_key}", "Content-Type": "application/json", "User-Agent": "Mozilla/5.0 (compatible; diet-assistant/1.0)"},
         method="POST",
     )
     try:
