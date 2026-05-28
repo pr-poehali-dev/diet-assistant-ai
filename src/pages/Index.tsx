@@ -120,21 +120,23 @@ const Index = () => {
               <p className="text-gray-500 text-sm">Персональный расчёт BMR, TDEE и БЖУ по формуле Миффлина-Сан Жеора</p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <CalcForm inp={inp} setInp={setInp} calcError={calcError} onCalc={handleCalc} />
-              <CalcResultPanel
-                result={result}
-                inp={inp}
-                onGoToDashboard={(tab) => { setDashboardTab(tab); setPage("dashboard"); }}
-                autoAnalyze={autoAnalyze}
-                onAutoAnalyzeDone={() => setAutoAnalyze(false)}
-              />
-              <AiChat
-                inp={inp}
-                result={result}
-                autoAnalyze={autoAnalyze}
-                onAutoAnalyzeDone={() => setAutoAnalyze(false)}
-              />
+              <div className="flex flex-col gap-6">
+                <CalcResultPanel
+                  result={result}
+                  inp={inp}
+                  onGoToDashboard={(tab) => { setDashboardTab(tab); setPage("dashboard"); }}
+                  autoAnalyze={autoAnalyze}
+                  onAutoAnalyzeDone={() => setAutoAnalyze(false)}
+                />
+                <AiChat
+                  inp={inp}
+                  result={result}
+                  autoAnalyze={autoAnalyze}
+                  onAutoAnalyzeDone={() => setAutoAnalyze(false)}
+                />
+              </div>
             </div>
 
             <div className="mt-8 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
