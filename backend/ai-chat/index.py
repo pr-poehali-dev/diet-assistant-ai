@@ -106,7 +106,7 @@ def handler(event: dict, context) -> dict:
         else:
             api_url = "https://api.groq.com/openai/v1/chat/completions"
             api_key = groq_key
-            model = "llama-3.3-70b-versatile"
+            model = "llama3-70b-8192"
 
         payload = json.dumps({
             "model": model,
