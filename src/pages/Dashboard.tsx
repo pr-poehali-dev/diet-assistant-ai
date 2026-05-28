@@ -23,7 +23,7 @@ interface DashboardProps {
 const Dashboard = ({ user, onLogout, externalProfile }: DashboardProps) => {
   const [tab, setTab] = useState<"today" | "diary" | "history" | "analysis" | "params">("today");
   const [profile, setProfile] = useState<UserProfile>({
-    name: user.name || "",
+    name: user?.name || "",
     dailyCalories: 0, proteinTarget: 0, fatTarget: 0, carbsTarget: 0,
   });
   const [log, setLog] = useState<FoodLog>({});
