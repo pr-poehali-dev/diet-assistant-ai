@@ -4,9 +4,10 @@ import Icon from "@/components/ui/icon";
 interface AuthPageProps {
   onLogin: (email: string, password: string) => Promise<string | null>;
   onRegister: (email: string, password: string, name: string) => Promise<string | null>;
+  onBack?: () => void;
 }
 
-export default function AuthPage({ onLogin, onRegister }: AuthPageProps) {
+export default function AuthPage({ onLogin, onRegister, onBack }: AuthPageProps) {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,6 +29,14 @@ export default function AuthPage({ onLogin, onRegister }: AuthPageProps) {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
+        {/* Back */}
+        {onBack && (
+          <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 transition-colors mb-4">
+            <Icon name="ArrowLeft" size={14} />
+            Вернуться в калькулятор
+          </button>
+        )}
+
         {/* Logo */}
         <div className="flex items-center justify-center gap-2.5 mb-8">
           <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center shadow-sm">
@@ -38,6 +47,13 @@ export default function AuthPage({ onLogin, onRegister }: AuthPageProps) {
 
         {/* Card */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
+          {onBack && (
+            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2.5 mb-5">
+              <Icon name="Lock" size={14} className="text-emerald-500 flex-shrink-0" />
+              <p className="text-xs text-emerald-700">Дневник питания доступен после входа — все твои данные сохраняются в личном кабинете</p>
+            </div>
+          )}
+
           <h2 className="text-xl font-bold text-gray-900 mb-1 text-center">
             {mode === "login" ? "Войти в аккаунт" : "Создать аккаунт"}
           </h2>

@@ -55,18 +55,9 @@ const Index = () => {
     setAutoAnalyze(true);
   }
 
-  // Загрузка
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Icon name="Loader2" size={32} className="text-emerald-500 animate-spin" />
-      </div>
-    );
-  }
-
-  // Не авторизован — показываем форму входа
-  if (!user) {
-    return <AuthPage onLogin={login} onRegister={register} />;
+  // Если не авторизован и пытается открыть дневник — показываем форму входа
+  if (!loading && !user && page === "dashboard") {
+    return <AuthPage onLogin={login} onRegister={register} onBack={() => setPage("calc")} />;
   }
 
   return (
