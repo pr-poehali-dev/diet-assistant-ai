@@ -87,7 +87,7 @@ def handler(event: dict, context) -> dict:
             openai_messages.append({"role": "assistant", "content": text})
 
     openai_key = os.environ.get("OPENAI_API_KEY", "").strip()
-    groq_key = os.environ.get("GROQ_API_KEY", "").strip()
+    groq_key = os.environ.get("GROQ_API_KEY", "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").strip()
 
     # Если нет ключей — сообщаем явно
     if not openai_key and not groq_key:
