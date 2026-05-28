@@ -167,8 +167,8 @@ export default function ParamsTab({ profile, setProfile }: ParamsTabProps) {
 
             {/* Заболевания / препараты */}
             {((profile.conditions?.length ?? 0) > 0 || (profile.medications?.length ?? 0) > 0) && (
-              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
-                <p className="text-xs font-semibold text-amber-700 mb-1.5">Учтено в расчёте</p>
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 space-y-2">
+                <p className="text-xs font-semibold text-amber-700">Учтено в расчёте</p>
                 <div className="flex flex-wrap gap-1.5">
                   {(profile.conditions || []).map((c) => (
                     <span key={c} className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{CONDITION_LABELS[c] || c}</span>
@@ -177,6 +177,9 @@ export default function ParamsTab({ profile, setProfile }: ParamsTabProps) {
                     <span key={m} className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">{MED_LABELS[m] || m}</span>
                   ))}
                 </div>
+                <p className="text-xs text-amber-600 leading-relaxed">
+                  Рекомендации по питанию носят ознакомительный характер и не являются медицинским назначением. Перед изменением рациона при наличии заболеваний или приёме препаратов обязательно проконсультируйтесь с врачом.
+                </p>
               </div>
             )}
           </div>
