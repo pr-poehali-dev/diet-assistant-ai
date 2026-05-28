@@ -1,6 +1,6 @@
 """
 AI-чат диетолога. Принимает историю сообщений и контекст пользователя,
-возвращает ответ от Groq Llama3.
+возвращает ответ от GPT-4o-mini через AITunnel.
 """
 
 import json
@@ -9,16 +9,14 @@ import urllib.request
 import urllib.error
 
 
-SYSTEM_PROMPT = """Ты — AI-диетолог и нутрициолог. Ты помогаешь людям с вопросами о питании, калориях, похудении и здоровом образе жизни.
+SYSTEM_PROMPT = """Ты AI-диетолог. Отвечай кратко — 2–4 предложения. Не используй списки, маркеры и эмодзи.
 
 Правила:
-- Отвечай дружелюбно и по делу, без лишней воды
-- Давай конкретные, практичные советы
-- Если у пользователя есть параметры (вес, рост, цель) — учитывай их в ответе
-- Не ставь медицинских диагнозов, не заменяй врача
-- При сложных вопросах (болезни, лекарства) рекомендуй проконсультироваться с врачом
-- Отвечай на русском языке
-- Максимальная длина ответа — 200 слов"""
+Не рекомендуй калорийность ниже 1200 ккал (женщины) и 1500 ккал (мужчины).
+При гипотиреозе, СПКЯ, диабете дефицит калорий не более 12%.
+Не советуй экстремальные диеты без консультации врача.
+
+Формат ответа: одна фраза — понимание проблемы, потом конкретный совет с цифрой или продуктом, потом короткое действие на сегодня. Например: «Понимаю, вы переели. Завтра вернитесь к норме 2200 ккал и добавьте 30 минут ходьбы. Прямо сейчас выпейте воду.»"""
 
 
 def handler(event: dict, context) -> dict:
@@ -86,56 +84,43 @@ def handler(event: dict, context) -> dict:
         elif role == "ai":
             openai_messages.append({"role": "assistant", "content": text})
 
-    openai_key = os.environ.get("OPENAI_API_KEY", "").strip()
-    groq_key = os.environ.get("GROQ_API_KEY", "").strip()
+    aitunnel_key = os.environ.get("AITUNNEL_API_KEY", "").strip()
 
-    # Если нет ключей — сообщаем явно
-    if not openai_key and not groq_key:
+    if not aitunnel_key:
         return {
             "statusCode": 200,
             "headers": cors_headers,
-            "body": json.dumps({"reply": "⚠️ Ключ GROQ_API_KEY не заполнен. Перейди в раздел «Ядро → Секреты», найди GROQ_API_KEY и вставь ключ с сайта console.groq.com"}),
+            "body": json.dumps({"reply": "⚠️ Ключ AITUNNEL_API_KEY не заполнен. Перейди в раздел «Ядро → Секреты» и добавь ключ от aitunnel.ru"}),
         }
 
-    # Если есть хотя бы один ключ — используем API
-    if openai_key or groq_key:
-        if openai_key:
-            api_url = "https://api.openai.com/v1/chat/completions"
-            api_key = openai_key
-            model = "gpt-4o-mini"
+    payload = json.dumps({
+        "model": "gpt-4o-mini",
+        "messages": openai_messages,
+        "max_tokens": 1500,
+        "temperature": 0.7,
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        "https://api.aitunnel.ru/v1/chat/completions",
+        data=payload,
+        headers={"Authorization": f"Bearer {aitunnel_key}", "Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=25) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        reply = data["choices"][0]["message"]["content"].strip()
+        return {"statusCode": 200, "headers": cors_headers, "body": json.dumps({"reply": reply})}
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8", errors="ignore")
+        if e.code == 401 or e.code == 403:
+            return {"statusCode": 200, "headers": cors_headers, "body": json.dumps({"reply": "⚠️ Ключ AITUNNEL_API_KEY неверный. Проверь ключ на aitunnel.ru и обнови его в разделе «Ядро → Секреты»."})}
+        elif e.code == 429:
+            return {"statusCode": 200, "headers": cors_headers, "body": json.dumps({"reply": "Слишком много запросов к AI. Подожди 10–20 секунд и попробуй снова."})}
         else:
-            api_url = "https://api.groq.com/openai/v1/chat/completions"
-            api_key = groq_key
-            model = "llama3-70b-8192"
-
-        payload = json.dumps({
-            "model": model,
-            "messages": openai_messages,
-            "max_tokens": 400,
-            "temperature": 0.7,
-        }).encode("utf-8")
-
-        req = urllib.request.Request(
-            api_url,
-            data=payload,
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            method="POST",
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=25) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-            reply = data["choices"][0]["message"]["content"].strip()
-            return {"statusCode": 200, "headers": cors_headers, "body": json.dumps({"reply": reply})}
-        except urllib.error.HTTPError as e:
-            err_body = e.read().decode("utf-8", errors="ignore")
-            if e.code == 401:
-                return {"statusCode": 200, "headers": cors_headers, "body": json.dumps({"reply": f"⚠️ Ключ GROQ_API_KEY неверный или недействительный. Проверь ключ на console.groq.com и обнови его в разделе «Ядро → Секреты»."})}
-            elif e.code == 429:
-                return {"statusCode": 200, "headers": cors_headers, "body": json.dumps({"reply": "Слишком много запросов к AI. Подожди 10–20 секунд и попробуй снова."})}
-            else:
-                return {"statusCode": 200, "headers": cors_headers, "body": json.dumps({"reply": f"Ошибка AI ({e.code}): {err_body[:300]}"})}
-        except Exception as e:
-            return {"statusCode": 200, "headers": cors_headers, "body": json.dumps({"reply": f"Ошибка соединения с AI: {str(e)}"})}
+            return {"statusCode": 200, "headers": cors_headers, "body": json.dumps({"reply": f"Ошибка AI ({e.code}): {err_body[:300]}"})}
+    except Exception as e:
+        return {"statusCode": 200, "headers": cors_headers, "body": json.dumps({"reply": "Сервис временно недоступен, попробуйте позже."})}
 
 
     # ── Fallback: встроенные советы без внешнего API ──────────────────────────
