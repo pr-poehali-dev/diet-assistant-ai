@@ -9,6 +9,7 @@ import DiaryTab from "./dashboard/DiaryTab";
 import HistoryTab from "./dashboard/HistoryTab";
 import AnalysisTab from "./dashboard/AnalysisTab";
 import ParamsTab from "./dashboard/ParamsTab";
+import ChatTab from "./dashboard/ChatTab";
 import { apiGetProfile, apiSaveProfile, apiGetFoodLog, apiSaveFoodLogDay } from "@/lib/api";
 import type { AuthUser } from "@/hooks/useAuth";
 
@@ -21,7 +22,7 @@ interface DashboardProps {
 }
 
 const Dashboard = ({ user, onLogout, externalProfile }: DashboardProps) => {
-  const [tab, setTab] = useState<"today" | "diary" | "history" | "analysis" | "params">("today");
+  const [tab, setTab] = useState<"today" | "diary" | "history" | "analysis" | "chat" | "params">("today");
   const [profile, setProfile] = useState<UserProfile>({
     name: user?.name || "",
     dailyCalories: 0, proteinTarget: 0, fatTarget: 0, carbsTarget: 0,
@@ -76,7 +77,8 @@ const Dashboard = ({ user, onLogout, externalProfile }: DashboardProps) => {
     { id: "today", label: "Сегодня", icon: "Sun" },
     { id: "diary", label: "Дневник", icon: "BookOpen" },
     { id: "history", label: "История", icon: "CalendarDays" },
-    { id: "analysis", label: "AI-анализ", icon: "Sparkles" },
+    { id: "chat", label: "AI-чат", icon: "MessageCircle" },
+    { id: "analysis", label: "Анализ", icon: "Sparkles" },
     { id: "params", label: "Параметры", icon: "User" },
   ] as const;
 
@@ -129,6 +131,7 @@ const Dashboard = ({ user, onLogout, externalProfile }: DashboardProps) => {
       {tab === "today" && <TodayTab log={log} profile={profile} setLog={handleSetLog} />}
       {tab === "diary" && <DiaryTab log={log} profile={profile} setLog={handleSetLog} />}
       {tab === "history" && <HistoryTab log={log} profile={profile} histDate={histDate} setHistDate={setHistDate} deleteEntry={deleteEntry} />}
+      {tab === "chat" && <ChatTab profile={profile} />}
       {tab === "analysis" && <AnalysisTab log={log} profile={profile} />}
       {tab === "params" && <ParamsTab profile={profile} setProfile={handleSetProfile} />}
     </div>
