@@ -113,14 +113,12 @@ def handler(event: dict, context) -> dict:
         return {"statusCode": 200, "headers": cors_headers, "body": json.dumps({"reply": reply})}
     except urllib.error.HTTPError as e:
         err_body = e.read().decode("utf-8", errors="ignore")
-        if e.code == 401 or e.code == 403:
-            return {"statusCode": 200, "headers": cors_headers, "body": json.dumps({"reply": "⚠️ Ключ AITUNNEL_API_KEY неверный. Проверь ключ на aitunnel.ru и обнови его в разделе «Ядро → Секреты»."})}
-        elif e.code == 429:
+        if e.code == 429:
             return {"statusCode": 200, "headers": cors_headers, "body": json.dumps({"reply": "Слишком много запросов к AI. Подожди 10–20 секунд и попробуй снова."})}
         else:
-            return {"statusCode": 200, "headers": cors_headers, "body": json.dumps({"reply": f"Ошибка AI ({e.code}): {err_body[:300]}"})}
+            return {"statusCode": 200, "headers": cors_headers, "body": json.dumps({"reply": f"Ошибка AI ({e.code}): {err_body[:500]}"})}
     except Exception as e:
-        return {"statusCode": 200, "headers": cors_headers, "body": json.dumps({"reply": "Сервис временно недоступен, попробуйте позже."})}
+        return {"statusCode": 200, "headers": cors_headers, "body": json.dumps({"reply": f"Ошибка соединения: {str(e)}"})}
 
 
     # ── Fallback: встроенные советы без внешнего API ──────────────────────────
