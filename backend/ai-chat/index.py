@@ -86,8 +86,16 @@ def handler(event: dict, context) -> dict:
         elif role == "ai":
             openai_messages.append({"role": "assistant", "content": text})
 
-    openai_key = os.environ.get("OPENAI_API_KEY", "")
-    groq_key = os.environ.get("GROQ_API_KEY", "")
+    openai_key = os.environ.get("OPENAI_API_KEY", "").strip()
+    groq_key = os.environ.get("GROQ_API_KEY", "").strip()
+
+    # Если нет ключей — сообщаем явно
+    if not openai_key and not groq_key:
+        return {
+            "statusCode": 200,
+            "headers": cors_headers,
+            "body": json.dumps({"reply": "⚠️ Ключ GROQ_API_KEY не заполнен. Перейди в раздел «Ядро → Секреты», найди GROQ_API_KEY и вставь ключ с сайта console.groq.com"}),
+        }
 
     # Если есть хотя бы один ключ — используем API
     if openai_key or groq_key:
@@ -120,12 +128,15 @@ def handler(event: dict, context) -> dict:
             return {"statusCode": 200, "headers": cors_headers, "body": json.dumps({"reply": reply})}
         except urllib.error.HTTPError as e:
             err_body = e.read().decode("utf-8", errors="ignore")
-            if e.code == 429:
-                pass  # fallback к встроенным советам
+            if e.code == 401:
+                return {"statusCode": 200, "headers": cors_headers, "body": json.dumps({"reply": f"⚠️ Ключ GROQ_API_KEY неверный или недействительный. Проверь ключ на console.groq.com и обнови его в разделе «Ядро → Секреты»."})}
+            elif e.code == 429:
+                return {"statusCode": 200, "headers": cors_headers, "body": json.dumps({"reply": "Слишком много запросов к AI. Подожди 10–20 секунд и попробуй снова."})}
             else:
-                return {"statusCode": 200, "headers": cors_headers, "body": json.dumps({"reply": "AI временно недоступен. Попробуй позже.", "error": err_body[:200]})}
-        except Exception:
-            pass  # fallback к встроенным советам
+                return {"statusCode": 200, "headers": cors_headers, "body": json.dumps({"reply": f"Ошибка AI ({e.code}): {err_body[:300]}"})}
+        except Exception as e:
+            return {"statusCode": 200, "headers": cors_headers, "body": json.dumps({"reply": f"Ошибка соединения с AI: {str(e)}"})}
+
 
     # ── Fallback: встроенные советы без внешнего API ──────────────────────────
     last_user_msg = ""
