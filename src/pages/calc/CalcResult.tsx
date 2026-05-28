@@ -1,5 +1,6 @@
 import Icon from "@/components/ui/icon";
 import { CalcResult as CalcResultType, CalcInput } from "./calcTypes";
+import AiChat from "./AiChat";
 
 // ─── MacroBar ─────────────────────────────────────────────────────────────────
 function MacroBar({ label, value, kcal, color, pct }: {
@@ -103,15 +104,8 @@ export default function CalcResult({ result, inp, onGoToDashboard, autoAnalyze, 
             </div>
           )}
 
-          {/* CTA buttons */}
+          {/* CTA button */}
           <div className="flex flex-col gap-2">
-            <button
-              onClick={() => onGoToDashboard("chat")}
-              className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm transition-all duration-150 flex items-center justify-center gap-2"
-            >
-              <Icon name="MessageCircle" size={16} className="text-white" />
-              Обсудить с AI-диетологом
-            </button>
             <button
               onClick={() => onGoToDashboard("diary")}
               className="w-full py-2.5 rounded-xl border border-gray-200 hover:border-emerald-300 text-gray-600 hover:text-emerald-600 font-semibold text-sm transition-all flex items-center justify-center gap-2"
@@ -122,6 +116,14 @@ export default function CalcResult({ result, inp, onGoToDashboard, autoAnalyze, 
           </div>
         </>
       )}
+
+      {/* AI-чат — часть второй колонки */}
+      <AiChat
+        inp={inp}
+        result={result}
+        autoAnalyze={autoAnalyze}
+        onAutoAnalyzeDone={onAutoAnalyzeDone}
+      />
     </div>
   );
 }

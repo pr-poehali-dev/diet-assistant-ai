@@ -5,7 +5,6 @@ import Dashboard, { UserProfile } from "./Dashboard";
 import { CalcInput, CalcResult, calcCalories } from "./calc/calcTypes";
 import CalcForm from "./calc/CalcForm";
 import CalcResultPanel from "./calc/CalcResult";
-import AiChat from "./calc/AiChat";
 import AuthPage from "./AuthPage";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -122,21 +121,13 @@ const Index = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <CalcForm inp={inp} setInp={setInp} calcError={calcError} onCalc={handleCalc} />
-              <div className="flex flex-col gap-6">
-                <CalcResultPanel
-                  result={result}
-                  inp={inp}
-                  onGoToDashboard={(tab) => { setDashboardTab(tab); setPage("dashboard"); }}
-                  autoAnalyze={autoAnalyze}
-                  onAutoAnalyzeDone={() => setAutoAnalyze(false)}
-                />
-                <AiChat
-                  inp={inp}
-                  result={result}
-                  autoAnalyze={autoAnalyze}
-                  onAutoAnalyzeDone={() => setAutoAnalyze(false)}
-                />
-              </div>
+              <CalcResultPanel
+                result={result}
+                inp={inp}
+                onGoToDashboard={(tab) => { setDashboardTab(tab); setPage("dashboard"); }}
+                autoAnalyze={autoAnalyze}
+                onAutoAnalyzeDone={() => setAutoAnalyze(false)}
+              />
             </div>
 
             <div className="mt-8 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
