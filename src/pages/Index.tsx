@@ -5,6 +5,7 @@ import Dashboard, { UserProfile } from "./Dashboard";
 import { CalcInput, CalcResult, calcCalories } from "./calc/calcTypes";
 import CalcForm from "./calc/CalcForm";
 import CalcResultPanel from "./calc/CalcResult";
+import AiChat from "./calc/AiChat";
 import AuthPage from "./AuthPage";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -30,6 +31,7 @@ const Index = () => {
   const [calcError, setCalcError] = useState("");
   const [dashboardProfile, setDashboardProfile] = useState<Partial<UserProfile> | undefined>(undefined);
   const [autoAnalyze, setAutoAnalyze] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
 
   function handleCalc() {
     const r = calcCalories(inp);
@@ -54,6 +56,7 @@ const Index = () => {
       tdee: r.tdee,
     });
     setAutoAnalyze(true);
+    setChatOpen(true);
   }
 
   // Пока проверяем сессию — спиннер
@@ -153,6 +156,15 @@ const Index = () => {
           </div>
         )}
       </main>
+
+      <AiChat
+        isOpen={chatOpen}
+        onToggle={() => setChatOpen((v) => !v)}
+        inp={inp}
+        result={result}
+        autoAnalyze={autoAnalyze}
+        onAutoAnalyzeDone={() => setAutoAnalyze(false)}
+      />
 
       <footer className="border-t border-gray-100 bg-white mt-12">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-400">
