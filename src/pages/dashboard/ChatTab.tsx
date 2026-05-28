@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import Icon from "@/components/ui/icon";
-import { UserProfile, AI_CHAT_URL } from "./dashboardTypes";
+import { UserProfile, FoodLog, AI_CHAT_URL, todayKey, dateKey, sumEntries } from "./dashboardTypes";
 
 interface Message {
   role: "user" | "ai";
@@ -10,6 +10,56 @@ interface Message {
 
 interface ChatTabProps {
   profile: UserProfile;
+  log: FoodLog;
+}
+
+function getAIContext(profile: UserProfile, log: FoodLog): Record<string, unknown> {
+  const today = todayKey();
+  const todayEntries = log[today] || [];
+  const todaySum = sumEntries(todayEntries);
+
+  const recentDays: { date: string; calories: number; protein: number; fat: number; carbs: number; entries: string[] }[] = [];
+  for (let i = 1; i <= 4; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = dateKey(d);
+    const entries = log[key] || [];
+    if (entries.length > 0) {
+      const s = sumEntries(entries);
+      recentDays.push({
+        date: key,
+        ...s,
+        entries: entries.slice(0, 5).map(e => `${e.name} ${e.weight}г (${e.calories}ккал)`),
+      });
+    }
+  }
+
+  const lastFoods = todayEntries.slice(-5).map(e => `${e.name} ${e.weight}г (${e.calories}ккал)`);
+  const remaining = (profile.dailyCalories || 0) - todaySum.calories;
+
+  return {
+    gender: profile.gender,
+    age: profile.age,
+    weight: profile.weight,
+    height: profile.height,
+    goal: profile.goal,
+    activity: profile.activity,
+    conditions: profile.conditions,
+    medications: profile.medications,
+    target: profile.dailyCalories,
+    protein: profile.proteinTarget,
+    fat: profile.fatTarget,
+    carbs: profile.carbsTarget,
+    bmr: profile.bmr,
+    tdee: profile.tdee,
+    todayCalories: todaySum.calories,
+    todayProtein: todaySum.protein,
+    todayFat: todaySum.fat,
+    todayCarbs: todaySum.carbs,
+    caloriesRemaining: remaining,
+    lastFoods,
+    recentDays,
+  };
 }
 
 function getTime() {
@@ -25,7 +75,7 @@ const QUICK = [
   "Как ускорить метаболизм?",
 ];
 
-export default function ChatTab({ profile }: ChatTabProps) {
+export default function ChatTab({ profile, log }: ChatTabProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "ai",
@@ -58,18 +108,7 @@ export default function ChatTab({ profile }: ChatTabProps) {
     setInput("");
     setTyping(true);
 
-    const userContext: Record<string, unknown> = {};
-    if (profile.dailyCalories) userContext.target = profile.dailyCalories;
-    if (profile.proteinTarget) userContext.protein = profile.proteinTarget;
-    if (profile.fatTarget) userContext.fat = profile.fatTarget;
-    if (profile.carbsTarget) userContext.carbs = profile.carbsTarget;
-    if (profile.gender) userContext.gender = profile.gender;
-    if (profile.age) userContext.age = profile.age;
-    if (profile.weight) userContext.weight = profile.weight;
-    if (profile.height) userContext.height = profile.height;
-    if (profile.goal) userContext.goal = profile.goal;
-    if (profile.conditions?.length) userContext.conditions = profile.conditions;
-    if (profile.medications?.length) userContext.medications = profile.medications;
+    const userContext = getAIContext(profile, log);
 
     try {
       const res = await fetch(AI_CHAT_URL, {

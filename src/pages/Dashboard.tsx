@@ -132,7 +132,7 @@ const Dashboard = ({ user, onLogout, externalProfile, initialTab }: DashboardPro
       {tab === "today" && <TodayTab log={log} profile={profile} setLog={handleSetLog} />}
       {tab === "diary" && <DiaryTab log={log} profile={profile} setLog={handleSetLog} />}
       {tab === "history" && <HistoryTab log={log} profile={profile} histDate={histDate} setHistDate={setHistDate} deleteEntry={deleteEntry} />}
-      {tab === "chat" && <ChatTab profile={profile} />}
+      {tab === "chat" && <ChatTab profile={profile} log={log} />}
       {tab === "analysis" && <AnalysisTab log={log} profile={profile} />}
       {tab === "params" && <ParamsTab profile={profile} setProfile={handleSetProfile} />}
     </div>

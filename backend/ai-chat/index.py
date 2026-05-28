@@ -74,6 +74,23 @@ def handler(event: dict, context) -> dict:
         if parts:
             system_content += "\n\nПараметры пользователя:\n" + "\n".join(f"- {p}" for p in parts)
 
+        # Данные дневника питания
+        diary_parts = []
+        if user_context.get("todayCalories") is not None:
+            remaining = user_context.get("caloriesRemaining", 0)
+            sign = "осталось" if remaining >= 0 else "перебор"
+            diary_parts.append(f"Сегодня съедено: {user_context['todayCalories']} ккал ({abs(remaining)} ккал {sign})")
+        if user_context.get("todayProtein"):
+            diary_parts.append(f"Сегодня БЖУ: Б={user_context['todayProtein']}г, Ж={user_context.get('todayFat',0)}г, У={user_context.get('todayCarbs',0)}г")
+        if user_context.get("lastFoods"):
+            diary_parts.append(f"Последние продукты сегодня: {', '.join(user_context['lastFoods'])}")
+        recent = user_context.get("recentDays", [])
+        if recent:
+            for day in recent[:3]:
+                diary_parts.append(f"{day['date']}: {day['calories']} ккал, Б={day['protein']}г")
+        if diary_parts:
+            system_content += "\n\nДневник питания:\n" + "\n".join(f"- {p}" for p in diary_parts)
+
     openai_messages = [{"role": "system", "content": system_content}]
 
     for m in messages_raw:
