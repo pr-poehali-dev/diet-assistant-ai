@@ -285,7 +285,7 @@ export default function Landing() {
           <div className="flex items-center gap-5">
             <button onClick={goToCalc} className="hover:text-gray-600 transition-colors">Калькулятор</button>
             <button onClick={goToCalc} className="hover:text-gray-600 transition-colors">Дневник питания</button>
-            <a href="#" className="hover:text-gray-600 transition-colors">Политика конфиденциальности</a>
+            <a href="/privacy" className="hover:text-gray-600 transition-colors">Политика конфиденциальности</a>
           </div>
         </div>
       </footer>

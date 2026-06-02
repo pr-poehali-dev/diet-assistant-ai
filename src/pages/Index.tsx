@@ -157,7 +157,7 @@ const Index = () => {
       <footer className="border-t border-gray-100 bg-white mt-12">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-400">
           <span>© 2026 AI Calorie Assistant</span>
-          <a href="#" className="hover:text-gray-600 transition-colors">Политика конфиденциальности</a>
+          <a href="/privacy" className="hover:text-gray-600 transition-colors">Политика конфиденциальности</a>
         </div>
       </footer>
     </div>
