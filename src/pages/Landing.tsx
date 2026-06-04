@@ -251,6 +251,54 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ══ SEO TEXT ════════════════════════════════════════════════════════ */}
+      <section className="py-16 bg-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-8">
+          <h2 className="text-2xl font-black text-gray-900 mb-8 text-center">Всё для контроля питания — в одном сервисе</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 text-sm text-gray-500 leading-relaxed">
+            <div>
+              <h3 className="font-bold text-gray-800 mb-2">Калькулятор калорий онлайн</h3>
+              <p>Точный расчёт нормы калорий по формуле Миффлина-Сан Жеора с учётом пола, возраста, веса, роста и уровня активности. Получите BMR, TDEE и персональный баланс БЖУ за 30 секунд — бесплатно и без регистрации.</p>
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-800 mb-2">Дневник питания с авторасчётом БЖУ</h3>
+              <p>Ведите дневник питания онлайн: добавляйте продукты, отслеживайте белки, жиры и углеводы в реальном времени. Автоматический подсчёт калорий и БЖУ по каждому приёму пищи — завтрак, обед, ужин, перекус.</p>
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-800 mb-2">AI-диетолог для похудения и набора массы</h3>
+              <p>Персональный AI-помощник отвечает на вопросы о питании, помогает составить рацион для похудения или набора мышечной массы, анализирует ваш дневник и даёт конкретные советы — доступен 24/7.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ══ BLOG PREVIEW ════════════════════════════════════════════════════ */}
+      <section className="py-16 bg-gray-50">
+        <div className="max-w-6xl mx-auto px-4 sm:px-8">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-2xl font-black text-gray-900 mb-1">Статьи о питании</h2>
+              <p className="text-gray-500 text-sm">Полезные материалы о калориях, БЖУ и здоровом рационе</p>
+            </div>
+            <a href="/blog" className="text-emerald-600 font-semibold text-sm flex items-center gap-1 hover:gap-2 transition-all">
+              Все статьи <Icon name="ArrowRight" size={14} />
+            </a>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            {[
+              { href: "/blog/formula-mifflina", tag: "Наука", title: "Формула Миффлина-Сан Жеора: как рассчитать норму калорий точно" },
+              { href: "/blog/pochemu-nelzya-rezko-urezat-kalorii", tag: "Диеты", title: "Почему резко урезать калории вредно: что происходит с телом" },
+              { href: "/blog/dnevnik-pitaniya-kak-vesti", tag: "Практика", title: "Дневник питания: почему это работает и как вести правильно" },
+            ].map(p => (
+              <a key={p.href} href={p.href} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 hover:shadow-md hover:-translate-y-1 transition-all duration-200 block">
+                <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{p.tag}</span>
+                <p className="font-bold text-gray-900 text-sm mt-2 leading-snug">{p.title}</p>
+              </a>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ══ CTA ══════════════════════════════════════════════════════════════ */}
       <section className="py-24 text-center">
         <div className="max-w-2xl mx-auto px-4 sm:px-8">
@@ -285,6 +333,7 @@ export default function Landing() {
           <div className="flex items-center gap-5">
             <button onClick={goToCalc} className="hover:text-gray-600 transition-colors">Калькулятор</button>
             <button onClick={goToCalc} className="hover:text-gray-600 transition-colors">Дневник питания</button>
+            <a href="/blog" className="hover:text-gray-600 transition-colors">Блог</a>
             <a href="/privacy" className="hover:text-gray-600 transition-colors">Политика конфиденциальности</a>
           </div>
         </div>
