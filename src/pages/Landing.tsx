@@ -328,12 +328,13 @@ export default function Landing() {
             <div className="w-6 h-6 rounded-lg bg-emerald-500 flex items-center justify-center">
               <Icon name="Flame" size={11} className="text-white" />
             </div>
-            <span>© 2025 AI Calorie Assistant</span>
+            <span>© 2026 AI Calorie Assistant</span>
           </div>
           <div className="flex items-center gap-5">
             <button onClick={goToCalc} className="hover:text-gray-600 transition-colors">Калькулятор</button>
             <button onClick={goToCalc} className="hover:text-gray-600 transition-colors">Дневник питания</button>
             <a href="/blog" className="hover:text-gray-600 transition-colors">Блог</a>
+            <a href="/about" className="hover:text-gray-600 transition-colors">О нас</a>
             <a href="/privacy" className="hover:text-gray-600 transition-colors">Политика конфиденциальности</a>
           </div>
         </div>
